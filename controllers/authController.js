@@ -77,3 +77,33 @@ export const staffRegister = async (req, res) => {
     res.status(500).json({ message: "Staff registration failed", error });
   }
 };
+
+// LOGIN USER
+export const loginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: "Invalid credentials" });
+
+    const match = await user.matchPassword(password);
+    if (!match) return res.status(400).json({ message: "Invalid credentials" });
+
+    // prevent pending or rejected staff from login
+    if (user.role === "staff" && user.status !== "approved") {
+      return res.status(403).json({
+        message: "Your account is not approved yet."
+      });
+    }
+
+    return res.json({
+      message: "Login successful",
+      role: user.role,
+      status: user.status,
+      token: generateToken(user._id, user.role)
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: "Login failed", error });
+  }
+};
