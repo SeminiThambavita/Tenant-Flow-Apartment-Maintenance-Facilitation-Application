@@ -13,4 +13,4 @@ const aiService = {
   },
 };
 
-module.exports = aiService;
+export default aiService;

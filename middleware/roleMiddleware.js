@@ -6,4 +6,4 @@ const roleMiddleware = (requiredRoles) => {
   };
 };
 
-module.exports = roleMiddleware;
+export default roleMiddleware;

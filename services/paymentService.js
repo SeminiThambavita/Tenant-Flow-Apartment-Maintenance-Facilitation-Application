@@ -13,4 +13,4 @@ const paymentService = {
   },
 };
 
-module.exports = paymentService;
+export default paymentService;

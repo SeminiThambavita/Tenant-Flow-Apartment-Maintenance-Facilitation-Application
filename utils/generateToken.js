@@ -3,4 +3,4 @@ const generateToken = (payload) => {
   // Generate and return JWT token
 };
 
-module.exports = generateToken;
+export default generateToken;

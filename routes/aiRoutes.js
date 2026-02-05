@@ -1,9 +1,10 @@
-const express = require('express');
+import express from 'express';
+// import aiController from '../controllers/aiController.js';
+
 const router = express.Router();
-// const aiController = require('../controllers/aiController');
 
 // router.post('/suggestions', aiController.generateSuggestions);
 // router.post('/analyze', aiController.analyzeIssue);
 // router.post('/report', aiController.generateReport);
 
-module.exports = router;
+export default router;
