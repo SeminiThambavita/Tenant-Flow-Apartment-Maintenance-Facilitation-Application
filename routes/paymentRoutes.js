@@ -1,10 +1,20 @@
-import express from 'express';
-// import paymentController from '../controllers/paymentController.js';
+import express from "express";
+import authMiddleware from "../middleware/authMiddleware.js";
+import {
+	initiatePayment,
+	verifyPayment,
+	getPayments,
+	handlePaymentNotify
+} from "../controllers/paymentController.js";
 
 const router = express.Router();
 
-// router.post('/initiate', paymentController.initiatePayment);
-// router.post('/verify', paymentController.verifyPayment);
-// router.get('/', paymentController.getPayments);
+// PayHere notify (no auth)
+router.post("/notify", handlePaymentNotify);
+
+// Protected routes
+router.post("/initiate", authMiddleware, initiatePayment);
+router.get("/", authMiddleware, getPayments);
+router.get("/:orderId", authMiddleware, verifyPayment);
 
 export default router;

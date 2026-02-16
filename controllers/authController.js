@@ -107,3 +107,84 @@ export const loginUser = async (req, res) => {
     res.status(500).json({ message: "Login failed", error });
   }
 };
+
+// UPDATE PROFILE
+export const updateProfile = async (req, res) => {
+  try {
+    const { name, phone } = req.body;
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Update fields
+    if (name) user.name = name;
+    if (phone) user.phone = phone;
+
+    await user.save();
+
+    return res.json({
+      message: "Profile updated successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: "Profile update failed", error });
+  }
+};
+
+// CHANGE PASSWORD
+export const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Current and new password are required" });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Verify current password
+    const match = await user.matchPassword(currentPassword);
+    if (!match) {
+      return res.status(400).json({ message: "Current password is incorrect" });
+    }
+
+    // Update password (will be hashed by pre-save hook)
+    user.password = newPassword;
+    await user.save();
+
+    return res.json({
+      message: "Password changed successfully"
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: "Password change failed", error });
+  }
+};
+
+// GET USER PROFILE
+export const getProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("-password");
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.json({ user });
+
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch profile", error });
+  }
+};

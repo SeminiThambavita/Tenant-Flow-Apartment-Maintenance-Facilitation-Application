@@ -1,6 +1,11 @@
-// Generate JWT Token utility
-const generateToken = (payload) => {
-  // Generate and return JWT token
+import jwt from "jsonwebtoken";
+
+const generateToken = (userId, role) => {
+  return jwt.sign(
+    { id: userId, role },
+    process.env.JWT_SECRET || "tenantflow_secret_key_2026",
+    { expiresIn: "30d" }
+  );
 };
 
 export default generateToken;
