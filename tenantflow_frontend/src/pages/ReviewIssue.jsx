@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { issueAPI } from '../api';
+import Logo from '../components/Logo';
+import { addNotification } from '../utils/notifications';
 
 const URGENCY_LABELS = {
   urgent: { label: 'High Priority', tag: 'URGENT', color: 'text-orange-600 bg-orange-50 border-orange-200' },
@@ -8,6 +11,15 @@ const URGENCY_LABELS = {
 };
 
 const STORAGE_KEY = 'tenantflow_report_issue';
+const ISSUE_TYPE_MAP = {
+  plumbing: 'plumbing',
+  electrical: 'electrical',
+  cleaning: 'cleaning',
+  carpentry: 'carpentry',
+  other: 'other',
+  appliance: 'other',
+  structural: 'carpentry',
+};
 
 export default function ReviewIssue() {
   const navigate = useNavigate();
@@ -15,6 +27,8 @@ export default function ReviewIssue() {
   const role = localStorage.getItem('role');
   const [showSuccess, setShowSuccess] = useState(false);
   const [mediaPreviews, setMediaPreviews] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
     if (role !== 'tenant') {
@@ -74,8 +88,51 @@ export default function ReviewIssue() {
     };
   }, [location.state, mediaPreviews, storedReport]);
 
-  const handleSubmit = () => {
-    setShowSuccess(true);
+  const normalizeIssueType = (category) => {
+    const normalized = (category || '').toLowerCase().trim();
+    return ISSUE_TYPE_MAP[normalized] || 'other';
+  };
+
+  const handleSubmit = async () => {
+    if (isSubmitting) {
+      return;
+    }
+
+    setSubmitError('');
+    setIsSubmitting(true);
+
+    const rawState = location.state || storedReport || {};
+    const payload = new FormData();
+    payload.append('issueType', normalizeIssueType(rawState.category));
+    payload.append('building', rawState.building || '');
+    payload.append('unitNumber', rawState.unit || '');
+    payload.append('specificSpot', rawState.specificSpot || '');
+    payload.append('description', rawState.description || '');
+
+    const mediaFiles = Array.isArray(rawState.mediaFiles) ? rawState.mediaFiles : [];
+    mediaFiles.forEach((file) => {
+      payload.append('media', file);
+    });
+
+    try {
+      const response = await issueAPI.create(payload);
+      const createdIssue = response?.data?.issue;
+      const categoryLabel = reportData.category || 'Maintenance';
+      addNotification({
+        type: 'issue-reported',
+        referenceId: createdIssue?._id || `${Date.now()}`,
+        title: 'Issue reported',
+        message: `${categoryLabel} request submitted`,
+        target: { path: '/tenant-dashboard', menu: 'dashboard' },
+        createdAt: createdIssue?.createdAt
+      });
+      localStorage.removeItem(STORAGE_KEY);
+      setShowSuccess(true);
+    } catch (error) {
+      setSubmitError('Failed to submit the request. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleGoDashboard = () => {
@@ -87,12 +144,7 @@ export default function ReviewIssue() {
     <div className="min-h-screen bg-slate-50">
       <nav className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-8 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">TF</span>
-            </div>
-            <span className="text-lg font-bold text-gray-900">Tenant Flow</span>
-          </div>
+          <Logo size={32} textClassName="text-lg font-bold text-gray-900" />
           <div className="flex items-center gap-6 text-xs text-slate-500">
             <span className="text-slate-800 font-semibold">Dashboard</span>
             <span>My Requests</span>
@@ -228,6 +280,8 @@ export default function ReviewIssue() {
               </div>
             </div>
 
+            {submitError && <p className="text-xs text-red-600 mt-3">{submitError}</p>}
+
             <div className="flex items-center justify-end gap-3 mt-5">
               <button
                 type="button"
@@ -239,9 +293,10 @@ export default function ReviewIssue() {
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="px-5 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg"
+                className="px-5 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg disabled:opacity-70"
+                disabled={isSubmitting}
               >
-                Submit Request &gt;
+                {isSubmitting ? 'Submitting...' : 'Submit Request >'}
               </button>
             </div>
           </div>

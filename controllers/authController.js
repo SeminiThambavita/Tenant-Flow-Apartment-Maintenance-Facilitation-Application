@@ -111,16 +111,29 @@ export const loginUser = async (req, res) => {
 // UPDATE PROFILE
 export const updateProfile = async (req, res) => {
   try {
-    const { name, phone } = req.body;
+    const { name, phone, email, apartmentNumber, floorNumber, nic } = req.body;
 
     const user = await User.findById(req.user._id);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
+    if (email && email !== user.email) {
+      const exists = await User.findOne({ email });
+      if (exists) {
+        return res.status(400).json({ message: "Email already exists" });
+      }
+      user.email = email;
+    }
+
     // Update fields
     if (name) user.name = name;
     if (phone) user.phone = phone;
+    if (user.role === "tenant") {
+      if (apartmentNumber) user.apartmentNumber = apartmentNumber;
+      if (floorNumber) user.floorNumber = floorNumber;
+      if (nic) user.nic = nic;
+    }
 
     await user.save();
 
@@ -131,7 +144,10 @@ export const updateProfile = async (req, res) => {
         name: user.name,
         email: user.email,
         phone: user.phone,
-        role: user.role
+        role: user.role,
+        apartmentNumber: user.apartmentNumber,
+        floorNumber: user.floorNumber,
+        nic: user.nic
       }
     });
 

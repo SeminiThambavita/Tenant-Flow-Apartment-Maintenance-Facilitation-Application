@@ -1,5 +1,5 @@
+import "dotenv/config";
 import express from "express";
-import dotenv from "dotenv";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -11,7 +11,6 @@ import paymentRoutes from "./routes/paymentRoutes.js";
 import invoiceRoutes from "./routes/invoiceRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
 
-dotenv.config();
 const app = express();
 
 const __filename = fileURLToPath(import.meta.url);

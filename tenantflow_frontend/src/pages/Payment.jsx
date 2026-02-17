@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { paymentAPI } from '../api';
+import Logo from '../components/Logo';
 
 const tipOptions = [10, 15, 20];
 
@@ -25,6 +26,9 @@ export default function Payment() {
   };
 
   const invoice = location.state?.invoice || fallbackInvoice;
+  const payhereItems = invoice.issueTitle
+    ? `${invoice.issueTitle}${invoice.invoiceNumber ? ` (${invoice.invoiceNumber})` : ''}`
+    : 'Maintenance Payment';
 
   const laborCharge = invoice.laborCharge ?? 30.0;
   const partsCharge = invoice.partsCharge ?? 15.0;
@@ -74,12 +78,22 @@ export default function Payment() {
     const firstName = nameParts[0] || 'Tenant';
     const lastName = nameParts.slice(1).join(' ') || 'User';
 
+    if (invoice?._id) {
+      localStorage.setItem('pendingInvoiceId', invoice._id);
+    }
+
+    const invoiceLabel = invoice?.issueTitle
+      ? `${invoice.issueTitle}${invoice.invoiceNumber ? ` (${invoice.invoiceNumber})` : ''}`
+      : 'Maintenance Payment';
+    localStorage.setItem('pendingInvoiceLabel', invoiceLabel);
+
     setIsSubmitting(true);
 
     try {
       const response = await paymentAPI.initiate({
         amount: totalDue,
-        items: 'Maintenance Payment',
+        items: payhereItems,
+        invoiceId: invoice?._id,
         customer: {
           firstName,
           lastName,
@@ -113,9 +127,12 @@ export default function Payment() {
       <div className="relative max-w-6xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <p className="text-xs text-slate-500">TenantFlow</p>
+            <Logo size={24} textClassName="text-xs font-semibold text-slate-600" />
             <h1 className="text-2xl font-['Space_Grotesk'] font-semibold text-slate-900">Payment for Maintenance</h1>
             <p className="text-sm text-slate-500">Review your invoice details and pay securely</p>
+            <span className="inline-flex mt-3 text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full">
+              PayHere Sandbox
+            </span>
           </div>
           <button
             type="button"

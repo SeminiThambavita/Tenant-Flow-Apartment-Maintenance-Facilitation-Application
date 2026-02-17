@@ -1,5 +1,7 @@
 import crypto from "crypto";
 import Payment from "../models/Payment.js";
+import Invoice from "../models/Invoice.js";
+import mongoose from "mongoose";
 import paymentService from "../services/paymentService.js";
 import verifyPayHereHash from "../utils/verifyPayHereHash.js";
 
@@ -21,7 +23,7 @@ const mapPayHereStatus = (statusCode) => {
 // Initiate PayHere payment
 export const initiatePayment = async (req, res) => {
   try {
-    const { amount, items, customer } = req.body;
+    const { amount, items, customer, invoiceId } = req.body;
 
     if (!amount || !customer?.firstName || !customer?.lastName || !customer?.email || !customer?.phone) {
       return res.status(400).json({ message: "Amount and customer details are required" });
@@ -29,8 +31,17 @@ export const initiatePayment = async (req, res) => {
 
     const orderId = `TF-${crypto.randomUUID()}`;
 
+    let invoice = null;
+    if (invoiceId && mongoose.Types.ObjectId.isValid(invoiceId)) {
+      invoice = await Invoice.findOne({ _id: invoiceId, tenant: req.user._id });
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+    }
+
     const payment = await Payment.create({
       tenant: req.user._id,
+      invoice: invoice ? invoice._id : undefined,
       orderId,
       amount,
       items
@@ -97,6 +108,13 @@ export const handlePaymentNotify = async (req, res) => {
 
     await payment.save();
 
+    if (payment.status === "paid" && payment.invoice) {
+      await Invoice.updateOne(
+        { _id: payment.invoice },
+        { $set: { status: "paid" } }
+      );
+    }
+
     return res.status(200).send("OK");
   } catch (error) {
     return res.status(500).send("Server error");
@@ -110,5 +128,23 @@ export const getPayments = async (req, res) => {
     return res.json({ count: payments.length, payments });
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch payments", error: error.message });
+  }
+};
+
+// Delete payment for current user
+export const deletePayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const payment = await Payment.findOne({ _id: id, tenant: req.user._id });
+
+    if (!payment) {
+      return res.status(404).json({ message: "Payment not found" });
+    }
+
+    await payment.deleteOne();
+
+    return res.json({ message: "Payment deleted" });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to delete payment", error: error.message });
   }
 };

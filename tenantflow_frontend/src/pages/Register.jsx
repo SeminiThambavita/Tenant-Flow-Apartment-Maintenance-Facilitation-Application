@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../api';
+import Logo from '../components/Logo';
 
 export default function Register() {
   const [userType, setUserType] = useState('tenant');
@@ -76,7 +77,7 @@ export default function Register() {
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Tenant Flow</h1>
+          <Logo className="justify-center mb-3" textClassName="text-3xl font-bold text-gray-900" />
           <h2 className="text-2xl font-semibold text-gray-800 mt-2">Register as Tenant</h2>
           <p className="text-gray-600 mt-2">
             Report issues, track repairs, and manage payments, all in one place.

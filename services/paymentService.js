@@ -20,6 +20,10 @@ const generateHash = ({ orderId, amount, currency }) => {
 
 const paymentService = {
   buildPayHerePayload: ({ orderId, amount, items, customer }) => {
+    if (!payhereConfig.merchantId || !payhereConfig.merchantSecret) {
+      throw new Error("PayHere merchant configuration is missing");
+    }
+
     const currency = payhereConfig.currency;
     const payload = {
       merchant_id: payhereConfig.merchantId,

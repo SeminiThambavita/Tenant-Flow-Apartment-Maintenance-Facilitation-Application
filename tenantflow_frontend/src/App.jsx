@@ -9,24 +9,30 @@ import StaffDashboard from './pages/StaffDashboard';
 import Payment from './pages/Payment';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancel from './pages/PaymentCancel';
+import Footer from './components/Footer';
 import './App.css';
 
 function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/tenant-dashboard" element={<TenantDashboard />} />
-        <Route path="/payment" element={<Payment />} />
-        <Route path="/payment/success" element={<PaymentSuccess />} />
-        <Route path="/payment/cancel" element={<PaymentCancel />} />
-        <Route path="/report-issue" element={<ReportIssue />} />
-        <Route path="/report-issue/review" element={<ReviewIssue />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/staff-dashboard" element={<StaffDashboard />} />
-        <Route path="/" element={<Navigate to="/login" />} />
-      </Routes>
+      <div className="min-h-screen flex flex-col">
+        <div className="flex-1">
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/tenant-dashboard" element={<TenantDashboard />} />
+            <Route path="/payment" element={<Payment />} />
+            <Route path="/payment/success" element={<PaymentSuccess />} />
+            <Route path="/payment/cancel" element={<PaymentCancel />} />
+            <Route path="/report-issue" element={<ReportIssue />} />
+            <Route path="/report-issue/review" element={<ReviewIssue />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/staff-dashboard" element={<StaffDashboard />} />
+            <Route path="/" element={<Navigate to="/login" />} />
+          </Routes>
+        </div>
+        <Footer />
+      </div>
     </Router>
   );
 }

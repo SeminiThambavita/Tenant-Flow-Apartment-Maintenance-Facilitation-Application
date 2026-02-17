@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
+import Logo from '../components/Logo';
 
 export default function StaffDashboard() {
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ export default function StaffDashboard() {
       {/* Navigation */}
       <nav className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">Tenant Flow</h1>
+          <Logo size={36} textClassName="text-2xl font-bold text-gray-900" />
           <button
             onClick={handleLogout}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"

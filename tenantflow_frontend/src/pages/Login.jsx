@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../api';
+import Logo from '../components/Logo';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -42,7 +43,7 @@ export default function Login() {
       <div className="w-full max-w-sm">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Tenant Flow</h1>
+          <Logo className="justify-center mb-4" textClassName="text-4xl font-bold text-gray-900" />
           <p className="text-gray-500 text-base">Welcome back</p>
         </div>
 

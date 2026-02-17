@@ -4,7 +4,8 @@ import {
 	initiatePayment,
 	verifyPayment,
 	getPayments,
-	handlePaymentNotify
+	handlePaymentNotify,
+	deletePayment
 } from "../controllers/paymentController.js";
 
 const router = express.Router();
@@ -16,5 +17,6 @@ router.post("/notify", handlePaymentNotify);
 router.post("/initiate", authMiddleware, initiatePayment);
 router.get("/", authMiddleware, getPayments);
 router.get("/:orderId", authMiddleware, verifyPayment);
+router.delete("/:id", authMiddleware, deletePayment);
 
 export default router;

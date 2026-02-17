@@ -52,6 +52,7 @@ export const paymentAPI = {
   initiate: (data) => api.post('/payments/initiate', data),
   getAll: () => api.get('/payments'),
   getByOrderId: (orderId) => api.get(`/payments/${orderId}`),
+  deleteById: (id) => api.delete(`/payments/${id}`),
 };
 
 export default api;

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Logo from '../components/Logo';
 
 const STORAGE_KEY = 'tenantflow_report_issue';
 
@@ -141,12 +142,7 @@ export default function ReportIssue() {
     <div className="min-h-screen bg-slate-50">
       <nav className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-8 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">TF</span>
-            </div>
-            <span className="text-lg font-bold text-gray-900">Tenant Flow</span>
-          </div>
+          <Logo size={32} textClassName="text-lg font-bold text-gray-900" />
           <div className="flex items-center gap-6 text-xs text-slate-500">
             <span className="text-slate-800 font-semibold">Dashboard</span>
             <span>My Requests</span>
