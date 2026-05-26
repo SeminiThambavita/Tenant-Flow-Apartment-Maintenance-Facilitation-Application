@@ -1,0 +1,429 @@
+{
+  "info": {
+    "name": "TenantFlow API",
+    "_postman_id": "9f4f2f8b-6d7d-4c8c-bf6f-tenantflow-api",
+    "description": "Prebuilt requests for TenantFlow backend API testing.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000" },
+    { "key": "token", "value": "" },
+    { "key": "tenantEmail", "value": "john.tenant@example.com" },
+    { "key": "tenantPassword", "value": "password123" },
+    { "key": "staffEmail", "value": "sam.staff@example.com" },
+    { "key": "staffPassword", "value": "password123" },
+    { "key": "adminEmail", "value": "admin@example.com" },
+    { "key": "adminPassword", "value": "admin123" },
+    { "key": "issueId", "value": "" },
+    { "key": "invoiceId", "value": "" },
+    { "key": "paymentId", "value": "" },
+    { "key": "orderId", "value": "" },
+    { "key": "staffId", "value": "" },
+    { "key": "tenantId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Public",
+      "item": [
+        {
+          "name": "POST /auth/tenant-register",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"{{tenantEmail}}\",\n  \"password\": \"{{tenantPassword}}\",\n  \"phone\": \"0771234567\",\n  \"buildingName\": \"Celestial Towers\",\n  \"unitNumber\": \"A-12\",\n  \"floorNumber\": \"12\",\n  \"nic\": \"199512345678\",\n  \"profileImage\": \"default.jpg\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/tenant-register"
+          }
+        },
+        {
+          "name": "POST /auth/staff-register (form-data)",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "name", "value": "Sam Staff", "type": "text" },
+                { "key": "email", "value": "{{staffEmail}}", "type": "text" },
+                { "key": "password", "value": "{{staffPassword}}", "type": "text" },
+                { "key": "phone", "value": "0775551234", "type": "text" },
+                { "key": "nationalId", "value": "199034567890", "type": "text" },
+                { "key": "primaryDepartment", "value": "plumbing", "type": "text" },
+                { "key": "secondarySkills", "value": "[\"welding\",\"pipe fitting\"]", "type": "text" },
+                { "key": "yearsOfExperience", "value": "5", "type": "text" },
+                { "key": "certifications", "value": "NVQ Level 4", "type": "text" },
+                { "key": "workStatus", "value": "full-time", "type": "text" },
+                { "key": "maxJobsPerDay", "value": "4", "type": "text" },
+                { "key": "availableWeekdaysFrom", "value": "08:00", "type": "text" },
+                { "key": "availableWeekdaysTo", "value": "17:00", "type": "text" },
+                { "key": "availableWeekendsFrom", "value": "09:00", "type": "text" },
+                { "key": "availableWeekendsTo", "value": "13:00", "type": "text" },
+                { "key": "bankName", "value": "Commercial Bank", "type": "text" },
+                { "key": "accountNumber", "value": "1234567890", "type": "text" },
+                { "key": "accountHolderName", "value": "Sam Staff", "type": "text" },
+                { "key": "branchCode", "value": "001", "type": "text" },
+                { "key": "agreeBackgroundCheck", "value": "true", "type": "text" },
+                { "key": "agreeTerms", "value": "true", "type": "text" },
+                { "key": "agreeTax", "value": "true", "type": "text" },
+                { "key": "agreeProfessional", "value": "true", "type": "text" },
+                { "key": "profilePhoto", "type": "file", "src": "" },
+                { "key": "idDocument", "type": "file", "src": "" }
+              ]
+            },
+            "url": "{{baseUrl}}/auth/staff-register"
+          }
+        },
+        {
+          "name": "POST /auth/login (Tenant)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "var data = pm.response.json();",
+                  "if (data.token) pm.collectionVariables.set('token', data.token);",
+                  "if (data.id) pm.collectionVariables.set('tenantId', data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{tenantEmail}}\",\n  \"password\": \"{{tenantPassword}}\",\n  \"role\": \"tenant\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "POST /auth/login (Staff)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "var data = pm.response.json();",
+                  "if (data.token) pm.collectionVariables.set('token', data.token);",
+                  "if (data.id) pm.collectionVariables.set('staffId', data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{staffEmail}}\",\n  \"password\": \"{{staffPassword}}\",\n  \"role\": \"staff\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "POST /auth/login (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "var data = pm.response.json();",
+                  "if (data.token) pm.collectionVariables.set('token', data.token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\",\n  \"role\": \"admin\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "POST /payments/notify",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"TF-123456\",\n  \"md5sig\": \"VALID_HASH_FROM_PAYHERE\",\n  \"status_code\": \"2\",\n  \"payment_id\": \"PAY-001\",\n  \"method\": \"VISA\"\n}"
+            },
+            "url": "{{baseUrl}}/payments/notify"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tenant",
+      "item": [
+        { "name": "GET /auth/profile", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/auth/profile" } },
+        {
+          "name": "PUT /auth/profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key":"Authorization","value":"Bearer {{token}}"},
+              {"key":"Content-Type","value":"application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Updated\",\n  \"phone\": \"0779998888\",\n  \"buildingName\": \"Celestial Towers\",\n  \"unitNumber\": \"A-14\",\n  \"floorNumber\": \"14\",\n  \"nic\": \"199512345678\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/profile"
+          }
+        },
+        {
+          "name": "PUT /auth/password",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key":"Authorization","value":"Bearer {{token}}"},
+              {"key":"Content-Type","value":"application/json"}
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"currentPassword\": \"password123\",\n  \"newPassword\": \"newPassword123\"\n}" },
+            "url": "{{baseUrl}}/auth/password"
+          }
+        },
+        {
+          "name": "POST /issues (form-data)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var data = pm.response.json();",
+                  "if (data.issue && data.issue._id) pm.collectionVariables.set('issueId', data.issue._id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key":"Authorization","value":"Bearer {{token}}"}],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "issueType", "value": "plumbing", "type": "text" },
+                { "key": "specificSpot", "value": "Kitchen sink", "type": "text" },
+                { "key": "description", "value": "Water leaking under the sink", "type": "text" },
+                { "key": "media", "type": "file", "src": "" }
+              ]
+            },
+            "url": "{{baseUrl}}/issues"
+          }
+        },
+        { "name": "GET /issues", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/issues" } },
+        { "name": "GET /issues/:id", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/issues/{{issueId}}" } },
+        { "name": "GET /invoices", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/invoices" } },
+        { "name": "GET /invoices/:id", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/invoices/{{invoiceId}}" } },
+        {
+          "name": "POST /payments/initiate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var data = pm.response.json();",
+                  "if (data.payment && data.payment._id) pm.collectionVariables.set('paymentId', data.payment._id);",
+                  "if (data.payment && data.payment.orderId) pm.collectionVariables.set('orderId', data.payment.orderId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key":"Authorization","value":"Bearer {{token}}"},
+              {"key":"Content-Type","value":"application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 4500,\n  \"items\": \"Maintenance Invoice Payment\",\n  \"invoiceId\": \"{{invoiceId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/payments/initiate"
+          }
+        },
+        { "name": "GET /payments", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/payments" } },
+        { "name": "GET /payments/:orderId", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/payments/{{orderId}}" } },
+        { "name": "DELETE /payments/:id", "request": { "method": "DELETE", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/payments/{{paymentId}}" } }
+      ]
+    },
+    {
+      "name": "Staff",
+      "item": [
+        { "name": "GET /auth/profile", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/auth/profile" } },
+        {
+          "name": "PUT /auth/profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key":"Authorization","value":"Bearer {{token}}"},
+              {"key":"Content-Type","value":"application/json"}
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Sam Updated\",\n  \"phone\": \"0774443333\",\n  \"email\": \"sam.updated@example.com\"\n}" },
+            "url": "{{baseUrl}}/auth/profile"
+          }
+        },
+        {
+          "name": "PUT /auth/password",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key":"Authorization","value":"Bearer {{token}}"},
+              {"key":"Content-Type","value":"application/json"}
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"currentPassword\": \"password123\",\n  \"newPassword\": \"newPassword123\"\n}" },
+            "url": "{{baseUrl}}/auth/password"
+          }
+        },
+        { "name": "GET /issues", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/issues" } },
+        { "name": "GET /issues/:id", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/issues/{{issueId}}" } },
+        {
+          "name": "PUT /issues/:id",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key":"Authorization","value":"Bearer {{token}}"},
+              {"key":"Content-Type","value":"application/json"}
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"in progress\",\n  \"priority\": \"high\",\n  \"resolutionNotes\": \"Visited unit and started repair\"\n}" },
+            "url": "{{baseUrl}}/issues/{{issueId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin / Property Manager",
+      "item": [
+        { "name": "GET /auth/profile", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/auth/profile" } },
+        {
+          "name": "PUT /auth/profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key":"Authorization","value":"Bearer {{token}}"},
+              {"key":"Content-Type","value":"application/json"}
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Admin Updated\",\n  \"phone\": \"0771112222\",\n  \"email\": \"admin.updated@example.com\"\n}" },
+            "url": "{{baseUrl}}/auth/profile"
+          }
+        },
+        {
+          "name": "PUT /auth/password",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key":"Authorization","value":"Bearer {{token}}"},
+              {"key":"Content-Type","value":"application/json"}
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"currentPassword\": \"adminOld123\",\n  \"newPassword\": \"adminNew123\"\n}" },
+            "url": "{{baseUrl}}/auth/password"
+          }
+        },
+        { "name": "GET /auth/staff/pending", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/auth/staff/pending" } },
+        { "name": "GET /auth/staff/approved", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/auth/staff/approved" } },
+        { "name": "GET /auth/staff/:id", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/auth/staff/{{staffId}}" } },
+        {
+          "name": "PUT /auth/staff/:id/status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key":"Authorization","value":"Bearer {{token}}"},
+              {"key":"Content-Type","value":"application/json"}
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"approved\"\n}" },
+            "url": "{{baseUrl}}/auth/staff/{{staffId}}/status"
+          }
+        },
+        { "name": "GET /auth/tenants", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/auth/tenants" } },
+        { "name": "GET /issues", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/issues" } },
+        { "name": "GET /issues/:id", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/issues/{{issueId}}" } },
+        {
+          "name": "PUT /issues/:id",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key":"Authorization","value":"Bearer {{token}}"},
+              {"key":"Content-Type","value":"application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"done and payment pending\",\n  \"assignedTo\": \"{{staffId}}\",\n  \"priority\": \"medium\",\n  \"resolutionNotes\": \"Repair completed\"\n}"
+            },
+            "url": "{{baseUrl}}/issues/{{issueId}}"
+          }
+        },
+        { "name": "DELETE /issues/:id", "request": { "method": "DELETE", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/issues/{{issueId}}" } },
+        {
+          "name": "POST /invoices",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var data = pm.response.json();",
+                  "if (data.invoice && data.invoice._id) pm.collectionVariables.set('invoiceId', data.invoice._id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key":"Authorization","value":"Bearer {{token}}"},
+              {"key":"Content-Type","value":"application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"issueId\": \"{{issueId}}\",\n  \"issueTitle\": \"Kitchen plumbing repair\",\n  \"laborCharge\": 3000,\n  \"partsCharge\": 1500,\n  \"dueDate\": \"2026-03-20T00:00:00.000Z\",\n  \"notes\": \"Replace pipe and valve\"\n}"
+            },
+            "url": "{{baseUrl}}/invoices"
+          }
+        },
+        { "name": "GET /invoices", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/invoices" } },
+        { "name": "GET /invoices/:id", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/invoices/{{invoiceId}}" } },
+        {
+          "name": "PUT /invoices/:id",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key":"Authorization","value":"Bearer {{token}}"},
+              {"key":"Content-Type","value":"application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"paid\",\n  \"laborCharge\": 3200,\n  \"partsCharge\": 1500,\n  \"dueDate\": \"2026-03-22T00:00:00.000Z\",\n  \"notes\": \"Final settled amount\"\n}"
+            },
+            "url": "{{baseUrl}}/invoices/{{invoiceId}}"
+          }
+        },
+        { "name": "DELETE /invoices/:id", "request": { "method": "DELETE", "header": [{"key":"Authorization","value":"Bearer {{token}}"}], "url": "{{baseUrl}}/invoices/{{invoiceId}}" } }
+      ]
+    }
+  ]
+}

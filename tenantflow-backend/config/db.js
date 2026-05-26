@@ -1,0 +1,17 @@
+import dns from "dns";
+import mongoose from "mongoose";
+
+// Some networks fail SRV lookups for mongodb+srv; public DNS resolves Atlas reliably.
+dns.setServers(["8.8.8.8", "1.1.1.1"]);
+
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("MongoDB Connected Successfully");
+  } catch (error) {
+    console.error("MongoDB Connection Error:", error);
+    process.exit(1);
+  }
+};
+
+export default connectDB;
