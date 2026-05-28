@@ -23,16 +23,21 @@ const storage = multer.diskStorage({
   }
 });
 
-// File filter for images and videos
+// File filter for images, videos, and audio
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = /jpeg|jpg|png|gif|mp4|mov|avi|webm|pdf/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedTypes.test(file.mimetype) || file.mimetype === "application/pdf";
-
-  if (mimetype && extname) {
+  const allowedExtensions = /\.(jpeg|jpg|png|gif|mp4|mov|avi|webm|pdf|mp3|wav|m4a|aac|ogg|flac)$/i;
+  const extname = allowedExtensions.test(file.originalname.toLowerCase());
+  
+  // Check MIME type
+  const isImage = file.mimetype.startsWith('image/');
+  const isVideo = file.mimetype.startsWith('video/');
+  const isAudio = file.mimetype.startsWith('audio/');
+  const isPDF = file.mimetype === 'application/pdf';
+  
+  if (extname && (isImage || isVideo || isAudio || isPDF)) {
     return cb(null, true);
   } else {
-    cb(new Error("Only image, video, and PDF files are allowed"));
+    cb(new Error("Only image, video, audio, and PDF files are allowed"));
   }
 };
 

@@ -23,8 +23,27 @@ const staffRegisterUpload = upload.fields([
   { name: "idDocument", maxCount: 1 }
 ]);
 
+const tenantRegisterUpload = upload.fields([
+  { name: "profilePhoto", maxCount: 1 }
+]);
+
+const profilePhotoUpload = upload.fields([
+  { name: "profilePhoto", maxCount: 1 }
+]);
+
 // Public routes
-router.post("/tenant-register", tenantRegister);
+router.post(
+  "/tenant-register",
+  (req, res, next) => {
+    tenantRegisterUpload(req, res, (error) => {
+      if (error) {
+        return res.status(400).json({ message: error.message || "Invalid file upload." });
+      }
+      next();
+    });
+  },
+  tenantRegister
+);
 router.post(
   "/staff-register",
   (req, res, next) => {
@@ -41,7 +60,19 @@ router.post("/login", loginUser);
 
 // Protected routes
 router.get("/profile", authMiddleware, getProfile);
-router.put("/profile", authMiddleware, updateProfile);
+router.put(
+  "/profile",
+  authMiddleware,
+  (req, res, next) => {
+    profilePhotoUpload(req, res, (error) => {
+      if (error) {
+        return res.status(400).json({ message: error.message || "Invalid file upload." });
+      }
+      next();
+    });
+  },
+  updateProfile
+);
 router.put("/password", authMiddleware, changePassword);
 
 // Admin routes for staff approvals

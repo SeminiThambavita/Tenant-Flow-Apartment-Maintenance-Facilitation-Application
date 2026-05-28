@@ -6,10 +6,13 @@ import { fileURLToPath } from "url";
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import issueRoutes from "./routes/issueRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+import costReportRoutes from "./routes/costReportRoutes.js";
 import taskRoutes from "./routes/taskRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import invoiceRoutes from "./routes/invoiceRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
+import buildingRoutes from "./routes/buildingRoutes.js";
 
 const app = express();
 
@@ -30,10 +33,13 @@ connectDB();
 // Use Routes
 app.use("/auth", authRoutes);
 app.use("/issues", issueRoutes);
+app.use("/notifications", notificationRoutes);
+app.use("/cost-reports", costReportRoutes);
 app.use("/tasks", taskRoutes);
 app.use("/payments", paymentRoutes);
 app.use("/invoices", invoiceRoutes);
 app.use("/ai", aiRoutes);
+app.use("/buildings", buildingRoutes);
 
 const PORT = process.env.PORT || 5000;
 

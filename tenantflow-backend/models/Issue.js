@@ -16,10 +16,15 @@ const issueSchema = new mongoose.Schema({
   
   // Section 2: Location (Mandatory)
   building: {
-    type: String,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Building",
     required: true
   },
-  unitNumber: {
+  floor: {
+    type: Number,
+    required: true
+  },
+  unit: {
     type: String,
     required: true
   },
@@ -28,17 +33,46 @@ const issueSchema = new mongoose.Schema({
     required: true
   },
   
+  // Legacy fields (for backward compatibility)
+  buildingName: {
+    type: String
+  },
+  unitNumber: {
+    type: String
+  },
+  
   // Section 3: Description
   description: {
     type: String,
     maxlength: 500,
     default: ""
   },
+
+  urgency: {
+    type: String,
+    enum: ["urgent", "standard", "low"],
+    default: "standard"
+  },
+
+  specialArrangements: {
+    specialAccess: {
+      type: Boolean,
+      default: false
+    },
+    petsInUnit: {
+      type: Boolean,
+      default: false
+    },
+    callBeforeArriving: {
+      type: Boolean,
+      default: false
+    }
+  },
   
   // Section 4: Media files
   media: [{
     url: { type: String, required: true },
-    type: { type: String, enum: ["image", "video"], required: true },
+    type: { type: String, enum: ["image", "video", "audio"], required: true },
     filename: { type: String }
   }],
   
@@ -50,8 +84,12 @@ const issueSchema = new mongoose.Schema({
       "assigned",
       "in progress",
       "completed",
-      "done and payment pending",
-      "payment successful"
+      "cost report submitted",
+      "cost report rejected",
+      "invoice issued",
+      "payment pending",
+      "payment done",
+      "task done"
     ],
     default: "new"
   },
@@ -67,12 +105,74 @@ const issueSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User"
   },
+
+  // Property manager handling this issue
+  propertyManager: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User"
+  },
   
   // Resolution details
   resolvedAt: {
     type: Date
   },
   resolutionNotes: {
+    type: String
+  },
+
+  // Status history for audit trail
+  statusHistory: [{
+    status: String,
+    changedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    },
+    changedAt: {
+      type: Date,
+      default: Date.now
+    },
+    reason: String
+  }],
+
+  // Cost report flag
+  costReportRequired: {
+    type: Boolean,
+    default: false
+  },
+
+  costReportCreatedAt: {
+    type: Date
+  },
+
+  // Current cost report
+  currentCostReport: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "CostReport"
+  },
+
+  // Generated invoice
+  invoice: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Invoice"
+  },
+
+  // Payment tracking
+  paymentStatus: {
+    type: String,
+    enum: ["pending", "completed", "failed"],
+    default: "pending"
+  },
+
+  paymentCompletedAt: {
+    type: Date
+  },
+
+  paymentAmount: {
+    type: Number,
+    default: 0
+  },
+
+  paymentReference: {
     type: String
   }
   

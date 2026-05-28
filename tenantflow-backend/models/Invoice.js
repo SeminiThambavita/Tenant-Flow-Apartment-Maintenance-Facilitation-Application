@@ -9,7 +9,16 @@ const invoiceSchema = new mongoose.Schema(
     },
     issue: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Issue"
+      ref: "Issue",
+      required: true
+    },
+    costReport: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "CostReport"
+    },
+    propertyManager: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
     },
     invoiceNumber: {
       type: String,
@@ -20,23 +29,54 @@ const invoiceSchema = new mongoose.Schema(
       type: String,
       required: true
     },
+    issueType: {
+      type: String
+    },
+    location: {
+      building: String,
+      unitNumber: String
+    },
     status: {
       type: String,
-      enum: ["pending", "paid", "overdue"],
+      enum: ["pending", "paid", "overdue", "cancelled"],
       default: "pending"
     },
+    
+    // Cost breakdown from cost report
+    costBreakdown: {
+      laborCost: {
+        type: Number,
+        default: 0
+      },
+      materialsCost: {
+        type: Number,
+        default: 0
+      },
+      transportCost: {
+        type: Number,
+        default: 0
+      },
+      otherCost: {
+        type: Number,
+        default: 0
+      }
+    },
+    
+    // Legacy fields (for backward compatibility)
     laborCharge: {
       type: Number,
-      required: true
+      default: 0
     },
     partsCharge: {
       type: Number,
-      required: true
+      default: 0
     },
+    
     total: {
       type: Number,
       required: true
     },
+    
     issuedAt: {
       type: Date,
       default: Date.now
@@ -44,6 +84,30 @@ const invoiceSchema = new mongoose.Schema(
     dueDate: {
       type: Date
     },
+    
+    // Payment details
+    paymentStatus: {
+      type: String,
+      enum: ["pending", "completed", "failed"],
+      default: "pending"
+    },
+    paymentMethod: {
+      type: String,
+      enum: ["payhere", "bank_transfer", "cash", "cheque"],
+      default: "payhere"
+    },
+    paymentReference: {
+      type: String
+    },
+    paidAt: {
+      type: Date
+    },
+    paymentProof: {
+      url: String,
+      reference: String,
+      timestamp: Date
+    },
+    
     notes: {
       type: String,
       default: ""

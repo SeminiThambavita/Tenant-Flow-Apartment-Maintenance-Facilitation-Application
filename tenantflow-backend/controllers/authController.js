@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import Building from "../models/Building.js";
 import generateToken from "../utils/generateToken.js";
 import bcrypt from "bcryptjs";
 
@@ -7,42 +8,99 @@ export const tenantRegister = async (req, res) => {
   try {
     const {
       name, email, password, phone,
-      buildingName, unitNumber, apartmentNumber, floorNumber, nic, profileImage
+      buildingId, floor, unit, nic
     } = req.body;
 
-    const normalizedApartmentNumber = apartmentNumber || unitNumber;
+    const parsedFloor = Number(floor);
 
-    // check mandatory fields
+    // Check mandatory fields
     if (!name || !email || !password || !phone ||
-        !buildingName || !unitNumber || !floorNumber || !nic || !profileImage) {
-      return res.status(400).json({ message: "All tenant fields are required." });
+        !buildingId || floor === undefined || !unit || !nic) {
+      return res.status(400).json({ message: "Name, email, password, phone, building, floor, unit, and NIC are required." });
     }
 
+    if (!Number.isInteger(parsedFloor) || parsedFloor < 1) {
+      return res.status(400).json({ message: "Invalid floor value." });
+    }
+
+    // Check if email already exists
     const exists = await User.findOne({ email });
     if (exists) return res.status(400).json({ message: "Email already exists" });
 
+    // Validate building exists
+    const building = await Building.findById(buildingId);
+    if (!building) {
+      return res.status(404).json({ message: "Building not found" });
+    }
+
+    // Check if floor exists
+    const floorData = building.floors.find(f => f.floorNumber === parsedFloor);
+    if (!floorData) {
+      return res.status(404).json({ message: "Floor not found in this building" });
+    }
+
+    // Check if unit exists on this floor
+    const unitData = floorData.units.find(u => u.unitNumber === unit);
+    if (!unitData) {
+      return res.status(404).json({ message: "Unit not found on this floor" });
+    }
+
+    // Check if unit is already occupied
+    if (unitData.occupied) {
+      return res.status(409).json({ 
+        message: "This unit is already occupied. Please select a different unit.",
+        available: false 
+      });
+    }
+
+    // Get property manager for this building
+    const propertyManager = building.propertyManagers[0];
+    if (!propertyManager) {
+      return res.status(400).json({ message: "No property manager assigned to this building" });
+    }
+
+    // Handle profile photo upload
+    let profileImage = "https://via.placeholder.com/150"; // Default placeholder
+    if (req.files && req.files.profilePhoto && req.files.profilePhoto.length > 0) {
+      const photoFile = req.files.profilePhoto[0];
+      profileImage = `/uploads/${photoFile.filename}`;
+    }
+
+    // Create tenant user
     const user = await User.create({
       name,
       email,
       password,
       phone,
-      buildingName,
-      unitNumber,
-      apartmentNumber: normalizedApartmentNumber,
-      floorNumber,
+      building: buildingId,
+      floor: parsedFloor,
+      unit,
       nic,
       profileImage,
       role: "tenant",
       status: "approved"  // tenants can login immediately
     });
 
+    // Mark unit as occupied
+    unitData.occupied = true;
+    unitData.occupiedBy = user._id;
+    unitData.occupiedAt = new Date();
+    await building.save();
+
     return res.status(201).json({
       message: "Tenant registered successfully",
-      token: generateToken(user._id, user.role)
+      token: generateToken(user._id, user.role),
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        building: buildingId,
+        profileImage
+      }
     });
 
   } catch (error) {
-    res.status(500).json({ message: "Tenant registration failed", error });
+    res.status(500).json({ message: "Tenant registration failed", error: error.message });
   }
 };
 
@@ -342,6 +400,12 @@ export const updateProfile = async (req, res) => {
     if (name !== undefined) user.name = name;
     if (phone !== undefined) user.phone = phone;
 
+    // Handle profile photo upload
+    if (req.files && req.files.profilePhoto && req.files.profilePhoto.length > 0) {
+      const photoFile = req.files.profilePhoto[0];
+      user.profileImage = `/uploads/${photoFile.filename}`;
+    }
+
     if (user.role === "tenant") {
       if (buildingName !== undefined) user.buildingName = buildingName;
       if (unitNumber !== undefined) user.unitNumber = unitNumber;
@@ -409,10 +473,32 @@ export const changePassword = async (req, res) => {
 // GET USER PROFILE
 export const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select("-password");
+    let query = User.findById(req.user._id).select("-password");
+    
+    // Populate building reference for tenants
+    if (req.user.role === "tenant") {
+      query = query.populate("building");
+    }
+    
+    let user = await query;
     
     if (!user) {
       return res.status(404).json({ message: "User not found" });
+    }
+    
+    // If tenant has no building reference but has floor and unit, try to find their building
+    if (user.role === "tenant" && !user.building && user.floor !== undefined && user.unit) {
+      // Try to find the building that has this floor and unit
+      const building = await Building.findOne({
+        'floors.floorNumber': user.floor,
+        'floors.units.unitNumber': user.unit
+      });
+      
+      if (building) {
+        user.building = building;
+        // Also save the building reference for future requests
+        await User.updateOne({ _id: user._id }, { building: building._id });
+      }
     }
 
     return res.json({ user });
@@ -482,8 +568,9 @@ export const getApprovedStaff = async (req, res) => {
 export const getTenants = async (req, res) => {
   try {
     const tenants = await User.find({ role: "tenant" })
-      .select("name email phone buildingName unitNumber apartmentNumber floorNumber nic createdAt")
-      .sort({ buildingName: 1, unitNumber: 1, apartmentNumber: 1, name: 1 });
+      .populate("building", "name address city")
+      .select("name email phone building buildingName unitNumber apartmentNumber floorNumber nic createdAt floor unit")
+      .sort({ name: 1 });
 
     return res.json({
       count: tenants.length,

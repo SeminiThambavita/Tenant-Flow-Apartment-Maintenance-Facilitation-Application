@@ -17,8 +17,16 @@ const authMiddleware = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET || "tenantflow_secret_key_2026");
 
-    // Attach user to request
-    req.user = await User.findById(decoded.id).select("-password");
+    // Attach user to request - populate building for tenants
+    let query = User.findById(decoded.id).select("-password");
+    
+    // Check if user is likely a tenant and populate building reference
+    const tempUser = await User.findById(decoded.id).select("role");
+    if (tempUser && tempUser.role === "tenant") {
+      query = query.populate("building");
+    }
+    
+    req.user = await query;
 
     if (!req.user) {
       return res.status(401).json({ message: "User not found" });

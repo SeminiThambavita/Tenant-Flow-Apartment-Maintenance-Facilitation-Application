@@ -15,32 +15,50 @@ const userSchema = new mongoose.Schema({
 
   phone: { type: String, required: true },
 
-  buildingName: {
-    type: String,
+  // Building reference for tenant
+  building: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Building",
     required: function() { return this.role === "tenant"; }
   },
-  unitNumber: {
+  floor: {
+    type: Number,
+    required: function() { return this.role === "tenant"; }
+  },
+  unit: {
     type: String,
     required: function() { return this.role === "tenant"; }
   },
 
-  // Tenant fields
+  // Legacy fields (kept for backward compatibility)
+  buildingName: {
+    type: String
+  },
+  unitNumber: {
+    type: String
+  },
   apartmentNumber: { 
-    type: String, 
-    required: function() { return this.role === "tenant"; } 
+    type: String
   },
   floorNumber: { 
-    type: String, 
-    required: function() { return this.role === "tenant"; } 
+    type: String
   },
   nic: { 
-    type: String, 
+    type: String,
     required: function() { return this.role === "tenant"; } 
   },
   profileImage: { 
-    type: String, 
+    type: String,
     required: function() { return this.role === "tenant"; } 
   },
+
+  // Property Manager (Admin) fields
+  buildings: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Building"
+    }
+  ],
 
   // Staff fields
   staffType: { 

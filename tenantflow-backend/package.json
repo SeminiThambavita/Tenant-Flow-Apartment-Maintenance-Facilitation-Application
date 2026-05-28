@@ -8,6 +8,7 @@
   "start": "node server.js",
   "dev": "nodemon server.js",
   "seed:admin": "node seedAdmin.js",
+  "seed:buildings": "node seeds/seedBuildings.js",
   "migrate:issue-statuses": "node migrateIssueStatuses.js"
 },
   "keywords": [],
