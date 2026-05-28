@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import Logo from './Logo';
 import ProfileDropdown from './ProfileDropdown';
+import NotificationBell from './NotificationBell';
 
 const NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard', path: '/staff-dashboard' },
@@ -60,6 +61,7 @@ export default function StaffNav({
             </button>
           );
         })}
+        <NotificationBell />
         <ProfileDropdown userName={profileName} userInitials={getInitials(profileName)} />
       </nav>
     </header>

@@ -60,11 +60,11 @@ function RoleSelection() {
       </div>
 
       {/* Role Cards */}
-      <div className="max-w-5xl w-full grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="max-w-5xl w-full grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 auto-rows-max">
         {roles.map((role) => (
           <div
             key={role.id}
-            className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow duration-300 p-8 flex flex-col items-center text-center"
+            className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow duration-300 p-8 flex flex-col items-center text-center h-full"
           >
             {/* Icon */}
             <div className="mb-4">
@@ -86,7 +86,7 @@ function RoleSelection() {
             </div>
 
             {/* Title */}
-            <h2 className="text-xl font-bold text-gray-900 mb-3">{role.title}</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-3 h-auto">{role.title}</h2>
 
             {/* Description */}
             <p className="text-gray-600 text-sm mb-6 flex-grow">{role.description}</p>
@@ -94,7 +94,7 @@ function RoleSelection() {
             {/* Button */}
             <button
               onClick={role.buttonAction}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors duration-300"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors duration-300 mt-auto"
             >
               {role.buttonText}
             </button>

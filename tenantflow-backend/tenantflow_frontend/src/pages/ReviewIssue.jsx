@@ -82,6 +82,7 @@ export default function ReviewIssue() {
       description:
         state.description ||
         'The sink faucet is dripping continuously, and the water pressure seems lower than usual. There is also a small pool of water forming inside the cabinet below.',
+      specialArrangements: state.specialArrangements || {},
       mediaCount,
       mediaMeta,
       mediaPreviews,
@@ -104,10 +105,14 @@ export default function ReviewIssue() {
     const rawState = location.state || storedReport || {};
     const payload = new FormData();
     payload.append('issueType', normalizeIssueType(rawState.category));
-    payload.append('building', rawState.building || '');
+    payload.append('building', rawState.buildingId || rawState.building || '');
+    payload.append('floor', rawState.floor || '');
+    payload.append('unit', rawState.unit || '');
     payload.append('unitNumber', rawState.unit || '');
     payload.append('specificSpot', rawState.specificSpot || '');
     payload.append('description', rawState.description || '');
+    payload.append('urgency', rawState.urgency || 'standard');
+    payload.append('specialArrangements', JSON.stringify(rawState.specialArrangements || {}));
 
     const mediaFiles = Array.isArray(rawState.mediaFiles) ? rawState.mediaFiles : [];
     mediaFiles.forEach((file) => {
@@ -129,7 +134,9 @@ export default function ReviewIssue() {
       localStorage.removeItem(STORAGE_KEY);
       setShowSuccess(true);
     } catch (error) {
-      setSubmitError('Failed to submit the request. Please try again.');
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to submit the request. Please try again.';
+      console.error('Issue submission error:', error);
+      setSubmitError(errorMsg);
     } finally {
       setIsSubmitting(false);
     }

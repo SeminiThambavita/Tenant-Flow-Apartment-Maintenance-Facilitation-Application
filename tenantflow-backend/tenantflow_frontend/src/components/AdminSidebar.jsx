@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import Logo from './Logo';
+import NotificationBell from './NotificationBell';
 
 const navItems = [
   { key: 'dashboard', label: 'Dashboard', path: '/admin-dashboard', icon: '◫' },
   { key: 'properties', label: 'Properties', path: '/admin/properties', icon: '▣' },
-  { key: 'staff', label: 'Staff', path: '/admin/staff-assignments', icon: '⌂' },
-  { key: 'repairs', label: 'Repairs', path: '/admin/in-progress-repairs', icon: '⚒' },
+  { key: 'staff', label: 'Task Assignment', path: '/admin/staff-assignments', icon: '⌂' },
+  { key: 'repairs', label: 'Tasks List', path: '/admin/in-progress-repairs', icon: '⚒' },
   { key: 'profile', label: 'Profile', path: '/admin/profile', icon: '⚙' },
 ];
 
@@ -45,10 +46,15 @@ export default function AdminSidebar({ active = 'dashboard', profileName = 'Prop
       <button
         type="button"
         onClick={() => navigate('/admin/profile')}
-        className="px-4 py-4 border-t border-[#EEF0F6] text-[11px] text-left hover:bg-[#F6F7FB] w-full"
+        className="px-4 py-4 border-t border-[#EEF0F6] text-[11px] text-left hover:bg-[#F6F7FB] w-full flex items-center justify-between gap-2"
       >
-        <p className="font-semibold text-[#1F2233] truncate">{profileName}</p>
-        <p className="text-[#7681A8]">Profile &amp; settings</p>
+        <div>
+          <p className="font-semibold text-[#1F2233] truncate">{profileName}</p>
+          <p className="text-[#7681A8]">Profile &amp; settings</p>
+        </div>
+        <div className="shrink-0">
+          <NotificationBell />
+        </div>
       </button>
     </aside>
   );

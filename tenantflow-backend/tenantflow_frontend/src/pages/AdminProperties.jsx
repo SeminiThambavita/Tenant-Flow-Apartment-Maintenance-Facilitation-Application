@@ -65,15 +65,20 @@ export default function AdminProperties() {
     return tenants
       .map((tenant) => {
         const issueInfo = issuesByTenant.get(tenant._id) || { total: 0, latestStatus: 'new', latestUpdatedAt: '' };
+        const buildingName = typeof tenant.building === 'object'
+          ? tenant.building?.name
+          : tenant.buildingName;
+        const floorNumber = tenant.floor ?? tenant.floorNumber;
+        const unitNumber = tenant.unit ?? tenant.unitNumber ?? tenant.apartmentNumber;
         return {
           id: tenant._id,
           tenantName: tenant.name || 'N/A',
           email: tenant.email || 'N/A',
           phone: tenant.phone || 'N/A',
-          building: tenant.buildingName || 'N/A',
-          unit: tenant.unitNumber || 'N/A',
+          building: buildingName || 'N/A',
+          unit: unitNumber || 'N/A',
           apartment: tenant.apartmentNumber || 'N/A',
-          floor: tenant.floorNumber || 'N/A',
+          floor: floorNumber ?? 'N/A',
           nic: tenant.nic || 'N/A',
           totalIssues: issueInfo.total,
           latestRepairStatus: formatStatusLabel(issueInfo.latestStatus),
@@ -82,12 +87,12 @@ export default function AdminProperties() {
       })
       .sort((a, b) => {
         if (a.building === b.building) {
-          if (a.unit === b.unit) {
+          if (String(a.unit) === String(b.unit)) {
             return a.tenantName.localeCompare(b.tenantName);
           }
-          return a.unit.localeCompare(b.unit);
+          return String(a.unit).localeCompare(String(b.unit));
         }
-        return a.building.localeCompare(b.building);
+        return String(a.building).localeCompare(String(b.building));
       });
   }, [tenants, issuesByTenant]);
 
@@ -106,7 +111,7 @@ export default function AdminProperties() {
       .slice(0, 8)
       .map((issue) => ({
         id: issue._id,
-        title: `${issue.issueType || 'Maintenance'} • ${issue.building || 'N/A'} ${issue.unitNumber || ''}`,
+        title: `${issue.issueType || 'Maintenance'} • ${issue.building?.name || issue.building || 'N/A'} ${issue.unit || issue.unitNumber || ''}`,
         message: `Status: ${formatStatusLabel(issue.status)}${issue.assignedTo?.name ? ` • Staff: ${issue.assignedTo.name}` : ''}`,
         createdAt: issue.updatedAt || issue.createdAt
       }));

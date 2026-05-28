@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { authAPI, issueAPI } from '../api';
 import AdminSidebar from '../components/AdminSidebar';
 
@@ -11,6 +11,14 @@ const ISSUE_LABELS = {
   other: 'General Maintenance'
 };
 
+const ISSUE_TYPE_TO_SKILLS = {
+  plumbing: ['plumber'],
+  electrical: ['electrician'],
+  cleaning: ['cleaner'],
+  carpentry: ['carpenter'],
+  other: ['plumber', 'electrician', 'cleaner', 'carpenter', 'other']
+};
+
 const PRIORITY_STYLES = {
   high: 'bg-[#FFEDE7] text-[#F0642A]',
   medium: 'bg-[#EAF2FF] text-[#3D7BEE]',
@@ -19,6 +27,7 @@ const PRIORITY_STYLES = {
 
 export default function AdminTaskAssignment() {
   const navigate = useNavigate();
+  const location = useLocation();
   const role = localStorage.getItem('role');
   const [profileName, setProfileName] = useState('Property Manager');
   const [issues, setIssues] = useState([]);
@@ -26,6 +35,8 @@ export default function AdminTaskAssignment() {
   const [selectedTaskIds, setSelectedTaskIds] = useState([]);
   const [selectedStaffId, setSelectedStaffId] = useState('');
   const [assigning, setAssigning] = useState(false);
+  const [selectedIssueForDetails, setSelectedIssueForDetails] = useState(null);
+  const [filterBySkill, setFilterBySkill] = useState(true);
 
   useEffect(() => {
     if (role !== 'admin') {
@@ -54,6 +65,16 @@ export default function AdminTaskAssignment() {
     loadData();
   }, [navigate, role]);
 
+  useEffect(() => {
+    const selectedIssueId = location.state?.selectedIssueId;
+    if (!selectedIssueId || !issues.length) return;
+
+    const match = issues.find((issue) => issue._id === selectedIssueId);
+    if (match) {
+      setSelectedIssueForDetails(match);
+    }
+  }, [issues, location.state]);
+
   const unassignedTasks = useMemo(
     () => issues.filter((issue) => !issue.assignedTo && issue.status === 'new'),
     [issues]
@@ -72,6 +93,26 @@ export default function AdminTaskAssignment() {
 
   const selectedStaff = staffMembers.find((staff) => staff._id === selectedStaffId);
 
+  // Filter staff based on selected issue type and skills
+  const filteredStaffMembers = useMemo(() => {
+    if (!selectedTaskIds.length || !filterBySkill) {
+      return staffMembers;
+    }
+
+    // Get the first selected task
+    const selectedTask = unassignedTasks.find((task) => selectedTaskIds[0] === task._id);
+    if (!selectedTask) return staffMembers;
+
+    // Get required skills for this issue type
+    const requiredSkills = ISSUE_TYPE_TO_SKILLS[selectedTask.issueType] || [];
+
+    // Filter staff that match the skills
+    return staffMembers.filter((staff) => {
+      const staffType = staff.staffType || staff.primaryDepartment || '';
+      return requiredSkills.includes(staffType.toLowerCase());
+    });
+  }, [selectedTaskIds, staffMembers, filterBySkill, unassignedTasks]);
+
   const formatIssueTitle = (issue) => {
     const label = ISSUE_LABELS[issue.issueType] || 'Maintenance Task';
     return `${label}`;
@@ -83,10 +124,11 @@ export default function AdminTaskAssignment() {
     return `${unit} • Reported ${minutesAgo}m ago`;
   };
 
-  const toggleTask = (taskId) => {
+  const toggleTask = (taskId, issue) => {
     setSelectedTaskIds((prev) =>
       prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]
     );
+    setSelectedIssueForDetails(issue);
   };
 
   const selectAllTasks = () => {
@@ -96,6 +138,7 @@ export default function AdminTaskAssignment() {
   const clearSelection = () => {
     setSelectedTaskIds([]);
     setSelectedStaffId('');
+    setSelectedIssueForDetails(null);
   };
 
   const handleAssign = async () => {
@@ -110,6 +153,7 @@ export default function AdminTaskAssignment() {
         assignedIds.map((taskId) =>
           issueAPI.update(taskId, {
             assignedTo: selectedStaffId,
+            status: 'assigned'
           })
         )
       );
@@ -154,9 +198,10 @@ export default function AdminTaskAssignment() {
 
         <div className="bg-[#F7F8FC] border border-[#E2E6F2] rounded-lg p-4">
           <h2 className="text-[24px] font-semibold text-[#1F2233]">Task Assignment Workspace</h2>
-          <p className="text-[12px] text-[#6774A9] mt-1">Select tasks from the left and an available staff member on the right to perform bulk assignment.</p>
+          <p className="text-[12px] text-[#6774A9] mt-1">Select a task to view details, then assign it to a suitable staff member based on their skills and availability.</p>
 
-          <div className="grid grid-cols-[1.25fr_0.85fr] gap-4 mt-5">
+          <div className="grid grid-cols-[1.2fr_0.8fr_1fr] gap-4 mt-5">
+            {/* Tasks Section */}
             <section>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[18px] font-semibold text-[#1F2233]">Unassigned Tasks <span className="text-[10px] align-middle bg-[#E9EDFF] text-[#4D5CD9] px-2 py-0.5 rounded-full ml-1">{unassignedTasks.length} Pending</span></p>
@@ -174,7 +219,7 @@ export default function AdminTaskAssignment() {
                       <button
                         key={task._id}
                         type="button"
-                        onClick={() => toggleTask(task._id)}
+                        onClick={() => toggleTask(task._id, task)}
                         className={`w-full bg-white rounded-lg border p-3 text-left transition ${selected ? 'border-[#3346F2] ring-1 ring-[#3346F2]' : 'border-[#DDE2F0]'}`}
                       >
                         <div className="flex items-start justify-between gap-3">
@@ -194,17 +239,79 @@ export default function AdminTaskAssignment() {
               </div>
             </section>
 
+            {/* Issue Details Section */}
+            <section className="bg-white rounded-lg border border-[#DDE2F0] p-4">
+              {selectedIssueForDetails ? (
+                <div className="text-[12px]">
+                  <h3 className="text-[14px] font-semibold text-[#1F2233] mb-3">Issue Details</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-[#6A75A7] text-[10px]">ISSUE TYPE</p>
+                      <p className="font-semibold text-[#1F2233]">{ISSUE_LABELS[selectedIssueForDetails.issueType] || selectedIssueForDetails.issueType}</p>
+                    </div>
+                    <div>
+                      <p className="text-[#6A75A7] text-[10px]">LOCATION</p>
+                      <p className="font-semibold text-[#1F2233]">Unit {selectedIssueForDetails.unit}</p>
+                      {selectedIssueForDetails.floor !== undefined && (
+                        <p className="text-[11px] text-[#6A75A7]">Floor {selectedIssueForDetails.floor}</p>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-[#6A75A7] text-[10px]">DESCRIPTION</p>
+                      <p className="text-[#1F2233] line-clamp-3">{selectedIssueForDetails.description || 'No description provided'}</p>
+                    </div>
+                    {selectedIssueForDetails.specificSpot && (
+                      <div>
+                        <p className="text-[#6A75A7] text-[10px]">SPECIFIC SPOT</p>
+                        <p className="text-[#1F2233]">{selectedIssueForDetails.specificSpot}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-[#6A75A7] text-[10px]">PRIORITY</p>
+                      <p className="font-semibold text-[#1F2233] capitalize">{selectedIssueForDetails.priority || 'Medium'}</p>
+                    </div>
+                    {selectedIssueForDetails.media && selectedIssueForDetails.media.length > 0 && (
+                      <div>
+                        <p className="text-[#6A75A7] text-[10px]">MEDIA FILES</p>
+                        <p className="font-semibold text-[#1F2233]">{selectedIssueForDetails.media.length} file(s) attached</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <p className="text-[12px] text-[#6A75A7] text-center">Select a task to view details</p>
+                </div>
+              )}
+            </section>
+
+            {/* Staff Section */}
             <section>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[18px] font-semibold text-[#1F2233]">Available Staff</p>
-                <span className="text-[10px] bg-[#E6F7EC] text-[#24A35A] px-2 py-0.5 rounded-full">• Online</span>
+              <div className="flex items-center justify-between mb-2 gap-2">
+                <p className="text-[18px] font-semibold text-[#1F2233]">Suitable Staff</p>
+                <button
+                  onClick={() => setFilterBySkill(!filterBySkill)}
+                  className={`text-[10px] px-2 py-1 rounded font-semibold transition ${
+                    filterBySkill
+                      ? 'bg-[#3346F2] text-white'
+                      : 'bg-[#E8EAF5] text-[#2E3348]'
+                  }`}
+                  title="Toggle skill-based filtering"
+                >
+                  {filterBySkill ? '🔽 Skills' : '⊖ All'}
+                </button>
               </div>
 
-              <div className="space-y-2">
-                {staffMembers.length === 0 ? (
-                  <div className="bg-white rounded-lg border border-[#DDE2F0] p-4 text-[12px] text-[#7681A8]">No approved staff available.</div>
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {filteredStaffMembers.length === 0 ? (
+                  <div className="bg-white rounded-lg border border-[#DDE2F0] p-4 text-[12px] text-[#7681A8]">
+                    {filterBySkill && selectedIssueForDetails
+                      ? `No ${ISSUE_LABELS[selectedIssueForDetails.issueType]?.toLowerCase()} specialists available.`
+                      : 'No approved staff available.'
+                    }
+                  </div>
                 ) : (
-                  staffMembers.map((staff) => {
+                  filteredStaffMembers.map((staff) => {
                     const selected = selectedStaffId === staff._id;
                     const activeTasks = staffTaskCounts[staff._id] || 0;
                     const dept = staff.primaryDepartment || staff.staffType || 'General Maintenance';
@@ -219,10 +326,12 @@ export default function AdminTaskAssignment() {
                       >
                         <div className="flex items-center gap-2">
                           <div className="w-9 h-9 rounded-full bg-[#F6D4A7] text-[#2E3348] text-[11px] font-semibold flex items-center justify-center">{getInitials(staff.name)}</div>
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <p className="text-[14px] font-semibold text-[#1F2233] truncate">{staff.name}</p>
-                            <p className="text-[11px] text-[#6A75A7] truncate">{dept} • <span className="text-[#24A35A]">{statusLabel}</span></p>
-                            <p className="text-[10px] text-[#596080] mt-0.5">{activeTasks} active tasks</p>
+                            <p className="text-[11px] text-[#6A75A7] truncate">{dept}</p>
+                            <p className="text-[10px] text-[#596080]">
+                              <span className="text-[#24A35A]">• {statusLabel}</span> • {activeTasks} active
+                            </p>
                           </div>
                         </div>
                       </button>

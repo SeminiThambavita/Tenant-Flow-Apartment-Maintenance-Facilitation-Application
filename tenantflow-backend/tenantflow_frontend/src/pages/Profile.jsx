@@ -16,6 +16,7 @@ export default function Profile() {
     apartmentNumber: '',
     floorNumber: '',
     nic: '',
+    profilePhoto: null,
   });
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -83,8 +84,12 @@ export default function Profile() {
   };
 
   const handleProfileChange = (event) => {
-    const { name, value } = event.target;
-    setProfileForm((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, files } = event.target;
+    if (type === 'file') {
+      setProfileForm((prev) => ({ ...prev, [name]: files ? files[0] : null }));
+    } else {
+      setProfileForm((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handlePasswordChange = (event) => {
@@ -100,16 +105,21 @@ export default function Profile() {
     const saveProfile = async () => {
       setProfileSaving(true);
       try {
-        const payload = {
-          name: profileForm.name,
-          email: profileForm.email,
-          phone: profileForm.phone,
-          buildingName: profileForm.buildingName,
-          unitNumber: profileForm.unitNumber,
-          apartmentNumber: profileForm.apartmentNumber,
-          floorNumber: profileForm.floorNumber,
-          nic: profileForm.nic,
-        };
+        // Use FormData to support file upload
+        const payload = new FormData();
+        payload.append('name', profileForm.name);
+        payload.append('email', profileForm.email);
+        payload.append('phone', profileForm.phone);
+        payload.append('buildingName', profileForm.buildingName);
+        payload.append('unitNumber', profileForm.unitNumber);
+        payload.append('apartmentNumber', profileForm.apartmentNumber);
+        payload.append('floorNumber', profileForm.floorNumber);
+        payload.append('nic', profileForm.nic);
+
+        // Append profile photo if selected
+        if (profileForm.profilePhoto) {
+          payload.append('profilePhoto', profileForm.profilePhoto);
+        }
 
         const response = await authAPI.updateProfile(payload);
         const user = response?.data?.user;
@@ -124,6 +134,7 @@ export default function Profile() {
             apartmentNumber: user.apartmentNumber || '',
             floorNumber: user.floorNumber || '',
             nic: user.nic || '',
+            profilePhoto: null,
           });
         }
 
@@ -317,6 +328,17 @@ export default function Profile() {
                   onChange={handleProfileChange}
                   className="mt-2 w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700"
                 />
+              </div>
+              <div className="col-span-2">
+                <label className="text-slate-600 font-semibold">Profile Photo (Optional)</label>
+                <input
+                  type="file"
+                  name="profilePhoto"
+                  onChange={handleProfileChange}
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  className="mt-2 w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700"
+                />
+                <p className="text-xs text-slate-500 mt-1">Allowed formats: JPG, PNG, GIF, WebP (Max 5MB)</p>
               </div>
               <div className="col-span-2 flex justify-end">
                 <button

@@ -38,7 +38,7 @@ export const issueAPI = {
 };
 
 export const taskAPI = {
-  getAll: () => api.get('/tasks'),
+  getAll: (params) => api.get('/tasks', { params }),
   getById: (id) => api.get(`/tasks/${id}`),
   create: (data) => api.post('/tasks', data),
   update: (id, data) => api.put(`/tasks/${id}`, data),
@@ -58,6 +58,42 @@ export const paymentAPI = {
   getAll: () => api.get('/payments'),
   getByOrderId: (orderId) => api.get(`/payments/${orderId}`),
   deleteById: (id) => api.delete(`/payments/${id}`),
+};
+
+export const notificationAPI = {
+  getAll: (params) => api.get('/notifications', { params }),
+  getUnreadCount: () => api.get('/notifications/unread/count'),
+  markAsRead: (id) => api.put(`/notifications/${id}/read`),
+  markAllAsRead: () => api.put('/notifications/read-all'),
+  delete: (id) => api.delete(`/notifications/${id}`),
+  clearAll: () => api.delete('/notifications/clear-all'),
+};
+
+export const costReportAPI = {
+  create: (data) => api.post('/cost-reports', data),
+  getAll: (params) => api.get('/cost-reports', { params }),
+  getById: (id) => api.get(`/cost-reports/${id}`),
+  getByIssue: (issueId) => api.get(`/cost-reports/issue/${issueId}`),
+  getPendingForManager: () => api.get('/cost-reports/manager/pending'),
+  update: (id, data) => api.put(`/cost-reports/${id}`, data),
+  submit: (id) => api.put(`/cost-reports/${id}/submit`),
+  approve: (id, data) => api.put(`/cost-reports/${id}/approve`, data),
+  reject: (id, data) => api.put(`/cost-reports/${id}/reject`, data),
+  delete: (id) => api.delete(`/cost-reports/${id}`),
+};
+
+export const ai = {
+  getSuggestions: (issueId) => api.get(`/ai/suggestions/${issueId}`),
+  analyzeIssue: (data) => api.post('/ai/analyze', data),
+};
+
+export const buildingAPI = {
+  getAll: () => api.get('/buildings'),
+  getById: (id) => api.get(`/buildings/${id}`),
+  getAvailableUnits: (buildingId) => api.get(`/buildings/${buildingId}/available-units`),
+  checkAvailability: (data) => api.post('/buildings/check-availability', data),
+  occupyUnit: (data) => api.post('/buildings/occupy-unit', data),
+  releaseUnit: (data) => api.post('/buildings/release-unit', data),
 };
 
 export default api;

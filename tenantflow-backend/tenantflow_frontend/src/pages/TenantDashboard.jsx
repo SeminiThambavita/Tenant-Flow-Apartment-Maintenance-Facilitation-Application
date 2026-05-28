@@ -5,7 +5,7 @@ import Logo from '../components/Logo';
 import IssueMediaGallery from '../components/IssueMediaGallery';
 import ProfileDropdown from '../components/ProfileDropdown';
 import usePolling from '../hooks/usePolling';
-import { formatStatusLabel, isCompletedStatus, isOpenStatus, normalizeStatus } from '../utils/issueStatus';
+import { formatStatusLabel, getStatusBadgeTheme, isCompletedStatus, isOpenStatus, normalizeStatus } from '../utils/issueStatus';
 import { addNotification, getNotifications, markNotificationRead } from '../utils/notifications';
 
 export default function TenantDashboard() {
@@ -124,6 +124,12 @@ export default function TenantDashboard() {
   };
 
   const formatIssueId = (issueId) => `#${issueId.slice(-6).toUpperCase()}`;
+
+  const getBuildingLabel = (value) => {
+    if (!value) return 'N/A';
+    if (typeof value === 'string') return value;
+    return value.name || 'N/A';
+  };
 
   const formatIssueDate = (dateValue) => {
     if (!dateValue) {
@@ -257,7 +263,7 @@ export default function TenantDashboard() {
       status: formatStatusLabel(statusKey),
       statusKey,
       date: formatIssueDate(issue.createdAt),
-      location: [issue.building, issue.unitNumber, issue.specificSpot].filter(Boolean).join(', '),
+      location: [getBuildingLabel(issue.building), issue.unit || issue.unitNumber, issue.specificSpot].filter(Boolean).join(', '),
       description: issue.description || 'No description provided.',
       raw: issue,
     };
@@ -304,7 +310,7 @@ export default function TenantDashboard() {
       id: formatIssueId(issue._id),
       title: issueTypeLabelMap[issue.issueType] || issue.issueType || 'Maintenance',
       date: `Resolved on ${formatIssueDate(issue.resolvedAt || issue.updatedAt)}`,
-      location: [issue.building, issue.unitNumber, issue.specificSpot].filter(Boolean).join(', '),
+      location: [getBuildingLabel(issue.building), issue.unit || issue.unitNumber, issue.specificSpot].filter(Boolean).join(', '),
       notes: issue.resolutionNotes || issue.description || 'No additional notes.',
       technician: issue.assignedTo?.name || 'Maintenance Team',
     }));
@@ -343,26 +349,6 @@ export default function TenantDashboard() {
         return 'text-green-600 bg-green-50';
       default:
         return 'text-gray-600';
-    }
-  };
-
-  const getStatusBadge = (status) => {
-    const normalizedStatus = normalizeStatus(status);
-    switch (normalizedStatus) {
-      case 'new':
-        return 'bg-yellow-100 text-yellow-800 border border-yellow-300';
-      case 'assigned':
-        return 'bg-yellow-100 text-yellow-800 border border-yellow-300';
-      case 'in progress':
-        return 'bg-blue-100 text-blue-800 border border-blue-300';
-      case 'completed':
-        return 'bg-green-100 text-green-800 border border-green-300';
-      case 'done and payment pending':
-        return 'bg-orange-100 text-orange-800 border border-orange-300';
-      case 'payment successful':
-        return 'bg-green-100 text-green-800 border border-green-300';
-      default:
-        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -487,7 +473,7 @@ export default function TenantDashboard() {
               📊 Dashboard
             </button>
             <button
-              onClick={() => setActiveMenu('invoices')}
+              onClick={() => navigate('/invoices')}
               className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition ${
                 activeMenu === 'invoices'
                   ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
@@ -497,7 +483,7 @@ export default function TenantDashboard() {
               📄 My Invoices
             </button>
             <button
-              onClick={() => setActiveMenu('payments')}
+              onClick={() => navigate('/payment-history')}
               className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition ${
                 activeMenu === 'payments'
                   ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
@@ -545,43 +531,39 @@ export default function TenantDashboard() {
               </div>
 
               {/* Stats Cards */}
-              <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-2 gap-4 mb-6">
             <button
               type="button"
               onClick={() => handleFilterChange('new')}
-              className={`bg-white rounded-xl shadow-sm p-4 border hover:shadow-md transition text-left ${
-                filterStatus === 'new' ? 'border-blue-200 ring-1 ring-blue-200' : 'border-slate-100'
+              className={`bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl shadow-sm p-5 border-2 hover:shadow-md transition text-left ${
+                filterStatus === 'new' ? 'border-blue-500 ring-1 ring-blue-300' : 'border-blue-100'
               }`}
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-600 text-xs font-medium mb-1">Open Requests</p>
-                  <p className="text-3xl font-bold text-gray-900">{openRequestsCount}</p>
+                  <p className="text-blue-600 text-xs font-bold mb-2 uppercase tracking-wide">Open Requests</p>
+                  <p className="text-4xl font-bold text-blue-900">{openRequestsCount}</p>
+                  <p className="text-blue-700 text-xs mt-3">Waiting for maintenance</p>
                 </div>
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center text-2xl">
-                  📋
-                </div>
+                <div className="text-4xl">📋</div>
               </div>
-              <p className="text-gray-500 text-xs mt-2">Waiting for maintenance</p>
             </button>
 
             <button
               type="button"
               onClick={() => handleFilterChange('done and payment pending')}
-              className={`bg-white rounded-xl shadow-sm p-4 border hover:shadow-md transition text-left ${
-                filterStatus === 'done and payment pending' ? 'border-blue-200 ring-1 ring-blue-200' : 'border-slate-100'
+              className={`bg-gradient-to-br from-green-50 to-green-100 rounded-xl shadow-sm p-5 border-2 hover:shadow-md transition text-left ${
+                filterStatus === 'done and payment pending' ? 'border-green-500 ring-1 ring-green-300' : 'border-green-100'
               }`}
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-600 text-xs font-medium mb-1">Completed This Month</p>
-                  <p className="text-3xl font-bold text-gray-900">{completedRequestsCount}</p>
+                  <p className="text-green-600 text-xs font-bold mb-2 uppercase tracking-wide">Completed</p>
+                  <p className="text-4xl font-bold text-green-900">{completedRequestsCount}</p>
+                  <p className="text-green-700 text-xs mt-3">Tasks resolved</p>
                 </div>
-                <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center text-2xl">
-                  ✅
-                </div>
+                <div className="text-4xl">✅</div>
               </div>
-              <p className="text-gray-500 text-xs mt-2">Tasks resolved</p>
             </button>
           </div>
 
@@ -639,8 +621,8 @@ export default function TenantDashboard() {
                               {req.urgency}
                             </td>
                             <td className="px-3 py-1.5 text-xs">
-                              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${getStatusBadge(req.status)}`}>
-                                {req.status}
+                              <span className={`inline-flex items-center justify-center min-w-[8.5rem] px-3.5 py-1 rounded-full whitespace-nowrap text-xs font-bold ${getStatusBadgeTheme(req.status, 'pill').className}`}>
+                                {getStatusBadgeTheme(req.status, 'pill').text}
                               </span>
                             </td>
                             <td className="px-3 py-1.5 text-xs text-gray-600">{req.date}</td>

@@ -4,21 +4,19 @@ import { authAPI, issueAPI } from '../api';
 import StaffNav from '../components/StaffNav';
 import ProfileDropdown from '../components/ProfileDropdown';
 import usePolling from '../hooks/usePolling';
-import { formatStatusLabel, isOpenStatus } from '../utils/issueStatus';
-
-const ISSUE_LABELS = {
-  plumbing: 'Water Leak',
-  electrical: 'Electrical Issue',
-  cleaning: 'Cleaning Task',
-  carpentry: 'Carpentry Work',
-  other: 'Maintenance Task',
-};
+import { formatStatusLabel, getStatusBadgeTheme, isOpenStatus } from '../utils/issueStatus';
 
 export default function StaffDashboard() {
   const navigate = useNavigate();
   const role = localStorage.getItem('role');
   const [profile, setProfile] = useState({ name: 'Staff Member', workStatus: 'on-call' });
   const [tasks, setTasks] = useState([]);
+
+  const getBuildingLabel = (value) => {
+    if (!value) return 'Building';
+    if (typeof value === 'string') return value;
+    return value.name || 'Building';
+  };
 
   const loadData = useCallback(async () => {
     if (role !== 'staff') return;
@@ -63,12 +61,14 @@ export default function StaffDashboard() {
   const todaysTaskCount = openTasks.length;
 
   const formatIssueTitle = (task) => {
-    const baseTitle = ISSUE_LABELS[task.issueType] || 'Maintenance Task';
-    return `${baseTitle} - ${task.specificSpot || 'General Area'}`;
+    const issueType = String(task.issueType || 'maintenance').toLowerCase();
+    const spot = String(task.specificSpot || 'general area').toLowerCase();
+    return `${issueType}-${spot}`;
   };
 
   const formatIssueSubtitle = (task) => {
-    const location = task.unitNumber ? `Unit ${task.unitNumber}` : 'Unit N/A';
+    const unitValue = task.unit || task.unitNumber;
+    const location = unitValue ? `Unit ${unitValue}` : 'Unit N/A';
     const priorityText = task.priority
       ? `${task.priority.charAt(0).toUpperCase()}${task.priority.slice(1)} Priority`
       : 'Priority N/A';
@@ -92,24 +92,41 @@ export default function StaffDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F4F5F9] text-[#171A2A]">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <StaffNav active="dashboard" profileName={profile.name} />
 
-      <main className="max-w-[700px] mx-auto pt-10 pb-10 px-4">
-        <h1 className="text-3xl md:text-4xl leading-tight font-semibold mb-1">Welcome back, {profile.name}</h1>
-        <p className="text-sm text-[#7681A8] mb-6">
-          {todayLabel} • {todaysTaskCount} open task{todaysTaskCount === 1 ? '' : 's'}
-        </p>
-
-        <div className="mb-3 flex items-center justify-between">
-          <p className="text-[12px] font-semibold tracking-[0.08em] text-[#8A96B7]">MY ASSIGNED TASKS</p>
-          <p className="text-[11px] text-[#7681A8]">Updates every 5s</p>
+      <main className="max-w-2xl mx-auto pt-8 pb-10 px-4">
+        <div className="mb-8">
+          <h1 className="text-3xl md:text-4xl leading-tight font-bold text-gray-900">Welcome back, {profile.name} 👋</h1>
+          <p className="text-sm text-gray-600 mt-2">
+            {todayLabel} • <span className="font-semibold text-blue-600">{todaysTaskCount} open task{todaysTaskCount === 1 ? '' : 's'}</span>
+          </p>
         </div>
 
-        <div className="space-y-2.5">
+        {/* Quick Stats */}
+        <div className="grid grid-cols-2 gap-4 mb-8">
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200 p-4">
+            <p className="text-xs font-bold text-blue-600 uppercase tracking-wide">Work Status</p>
+            <p className="text-2xl font-bold text-blue-900 mt-2 capitalize">{profile.workStatus}</p>
+          </div>
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200 p-4">
+            <p className="text-xs font-bold text-purple-600 uppercase tracking-wide">Tasks Today</p>
+            <p className="text-2xl font-bold text-purple-900 mt-2">{todaysTaskCount}</p>
+          </div>
+        </div>
+
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-bold tracking-wider text-gray-600 uppercase">My Assigned Tasks</p>
+            <p className="text-sm text-gray-500 mt-1">Updates every 5 seconds</p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
           {tasks.length === 0 ? (
-            <div className="rounded-xl border border-[#E5E8F1] bg-white px-5 py-6 text-[14px] text-[#7681A8]">
-              No assigned tasks yet.
+            <div className="rounded-xl border-2 border-dashed border-gray-300 bg-white px-6 py-12 text-center">
+              <p className="text-lg text-gray-600 font-medium">No assigned tasks yet</p>
+              <p className="text-sm text-gray-400 mt-2">Check back soon for new maintenance requests</p>
             </div>
           ) : (
             tasks.map((task) => {
@@ -119,20 +136,40 @@ export default function StaffDashboard() {
                   key={task._id}
                   type="button"
                   onClick={() => navigate(`/staff/tasks/${task._id}`)}
-                  className="w-full rounded-xl border border-[#E5E8F1] bg-white px-4 py-3 flex items-center justify-between gap-3 text-left hover:border-[#3F46F0] transition"
+                  className="w-full rounded-xl border-2 border-gray-200 bg-white px-5 py-4 flex items-start justify-between gap-4 text-left hover:border-blue-400 hover:shadow-md transition group"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-10 h-10 rounded-lg ${badge.bg} flex items-center justify-center text-sm shrink-0`}>
+                  <div className="flex items-start gap-4 min-w-0 flex-1">
+                    <div className={`w-12 h-12 rounded-lg ${badge.bg} flex items-center justify-center text-lg shrink-0 group-hover:scale-110 transition`}>
                       {badge.icon}
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-[14px] font-semibold truncate">{formatIssueTitle(task)}</p>
-                      <p className="text-[13px] text-[#7B87AD] truncate">{formatIssueSubtitle(task)}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-base font-bold text-gray-900 group-hover:text-blue-600 transition truncate">{formatIssueTitle(task)}</p>
+                      <p className="text-sm text-gray-600 mt-1 truncate">{formatIssueSubtitle(task)}</p>
+                      <div className="flex gap-2 mt-2">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                          {getBuildingLabel(task.building)}
+                        </span>
+                        {task.urgency && (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            task.urgency === 'urgent' ? 'bg-red-100 text-red-700' :
+                            task.urgency === 'standard' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-green-100 text-green-700'
+                          }`}>
+                            {task.urgency.charAt(0).toUpperCase() + task.urgency.slice(1)}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right pr-1 shrink-0">
-                    <p className="text-[12px] font-semibold text-[#3F46F0]">View details</p>
-                    <p className="text-[12px] text-[#7783A8]">{formatTime(task.updatedAt || task.createdAt)}</p>
+                  <div className="text-right pr-2 shrink-0 flex flex-col items-end gap-2">
+                    <span
+                      className={`inline-flex items-center justify-center min-w-[5.75rem] h-12 px-3 rounded-full whitespace-nowrap text-[10px] font-bold uppercase tracking-wide ${getStatusBadgeTheme(task.status, 'circle').className}`}
+                      title={formatStatusLabel(task.status)}
+                    >
+                      {formatStatusLabel(task.status)}
+                    </span>
+                    <p className="text-sm font-semibold text-blue-600 group-hover:text-blue-700">View</p>
+                    <p className="text-xs text-gray-500 mt-1">{formatTime(task.updatedAt || task.createdAt)}</p>
                   </div>
                 </button>
               );

@@ -14,9 +14,11 @@ import StaffProfile from './pages/StaffProfile';
 import StaffTaskDetail from './pages/StaffTaskDetail';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminInProgressRepairs from './pages/AdminInProgressRepairs';
+import AdminRepairDetail from './pages/AdminRepairDetail';
 import AdminTaskAssignment from './pages/AdminTaskAssignment';
 import AdminProperties from './pages/AdminProperties';
 import AdminProfile from './pages/AdminProfile';
+import StaffApprovalDetail from './pages/StaffApprovalDetail';
 import Payment from './pages/Payment';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancel from './pages/PaymentCancel';
@@ -57,7 +59,9 @@ function AppContent() {
           <Route path="/staff/profile" element={<StaffProfile />} />
           <Route path="/staff/tasks/:id" element={<StaffTaskDetail />} />
           <Route path="/admin-dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/staff-approval/:id" element={<StaffApprovalDetail />} />
           <Route path="/admin/in-progress-repairs" element={<AdminInProgressRepairs />} />
+          <Route path="/admin/in-progress-repairs/:id" element={<AdminRepairDetail />} />
           <Route path="/admin/staff-assignments" element={<AdminTaskAssignment />} />
           <Route path="/admin/properties" element={<AdminProperties />} />
           <Route path="/admin/profile" element={<AdminProfile />} />

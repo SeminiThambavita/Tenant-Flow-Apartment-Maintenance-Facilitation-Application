@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authAPI } from '../api';
+import { authAPI, buildingAPI } from '../api';
 import Logo from '../components/Logo';
+import Dialog from '../components/Dialog';
 
 const STORAGE_KEY = 'tenantflow_report_issue';
 
@@ -13,12 +14,22 @@ export default function ReportIssue() {
   const [specificSpot, setSpecificSpot] = useState('');
   const [description, setDescription] = useState('');
   const [building, setBuilding] = useState('');
+  const [buildingId, setBuildingId] = useState('');
+  const [floor, setFloor] = useState('');
   const [unit, setUnit] = useState('');
+  const [specialArrangements, setSpecialArrangements] = useState({
+    specialAccess: false,
+    petsInUnit: false,
+    callBeforeArriving: false,
+  });
   const [mediaFiles, setMediaFiles] = useState([]);
   const [mediaPreviews, setMediaPreviews] = useState([]);
   const [mediaMeta, setMediaMeta] = useState([]);
   const [errors, setErrors] = useState({});
+  const [dialog, setDialog] = useState({ isOpen: false, title: '', message: '', type: 'info' });
   const maxDescriptionLength = 500;
+  const maxFiles = 5;
+  const maxFileSizeMB = 10;
 
   useEffect(() => {
     if (role !== 'tenant') {
@@ -38,6 +49,13 @@ export default function ReportIssue() {
       setUrgency(data.urgency || 'standard');
       setSpecificSpot(data.specificSpot || '');
       setDescription(data.description || '');
+      setBuilding(data.building || '');
+      setBuildingId(data.buildingId || '');
+      setSpecialArrangements({
+        specialAccess: Boolean(data.specialArrangements?.specialAccess),
+        petsInUnit: Boolean(data.specialArrangements?.petsInUnit),
+        callBeforeArriving: Boolean(data.specialArrangements?.callBeforeArriving),
+      });
       setMediaMeta(Array.isArray(data.mediaMeta) ? data.mediaMeta : []);
     } catch {
       return;
@@ -51,15 +69,69 @@ export default function ReportIssue() {
       try {
         const response = await authAPI.getProfile();
         const user = response?.data?.user;
+        
         if (!isMounted || !user) {
           return;
         }
 
-        setBuilding(user.buildingName || '');
-        setUnit(user.unitNumber || user.apartmentNumber || '');
-      } catch {
+        // Auto-fill building info from tenant's registered building
+        let buildingName = '';
+        let buildingObjId = '';
+        
+        // Try to get building name and ID from the populated building object
+        if (user.building) {
+          // Handle populated building object (from MongoDB populate)
+          if (typeof user.building === 'object' && user.building !== null) {
+            buildingName = user.building.name || user.building.buildingName || '';
+            buildingObjId = (user.building._id || user.building.id || user.building).toString();
+          } 
+          // Handle case where building is just an ID string or ObjectId
+          else if (typeof user.building === 'string' || user.building.toString) {
+            const buildingId = user.building.toString();
+            buildingObjId = buildingId;
+            try {
+              const buildingResponse = await buildingAPI.getById(buildingId);
+              if (buildingResponse?.data?.building) {
+                buildingName = buildingResponse.data.building.name || '';
+                // Also get the ID from the response to ensure it's correct
+                buildingObjId = buildingResponse.data.building._id || buildingId;
+              }
+            } catch (err) {
+              console.error('Failed to fetch building:', err);
+            }
+          }
+        }
+        
+        // Fallback to legacy buildingName field
+        if (!buildingName && user.buildingName) {
+          buildingName = user.buildingName;
+        }
+        
+        if (isMounted) {
+          setBuilding(buildingName || '');
+          setBuildingId(buildingObjId || '');
+
+          // Auto-fill floor from tenant profile with legacy fallback
+          if (user.floor !== undefined && user.floor !== null && user.floor !== '') {
+            setFloor(String(user.floor));
+          } else if (user.floorNumber) {
+            setFloor(String(user.floorNumber));
+          }
+
+          // Auto-fill unit from tenant profile with legacy fallback
+          if (user.unit) {
+            setUnit(user.unit);
+          } else if (user.unitNumber) {
+            setUnit(user.unitNumber);
+          } else if (user.apartmentNumber) {
+            setUnit(user.apartmentNumber);
+          }
+        }
+      } catch (error) {
         if (isMounted) {
           setBuilding('');
+          setBuildingId('');
+          setFloor('');
           setUnit('');
         }
       }
@@ -93,13 +165,16 @@ export default function ReportIssue() {
       category,
       urgency,
       building,
+      buildingId,
+      floor,
       unit,
       specificSpot,
       description,
+      specialArrangements,
       mediaMeta,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  }, [category, urgency, building, unit, specificSpot, description, mediaMeta]);
+  }, [category, urgency, building, buildingId, floor, unit, specificSpot, description, specialArrangements, mediaMeta]);
 
   const validateForm = () => {
     const nextErrors = {};
@@ -114,6 +189,10 @@ export default function ReportIssue() {
 
     if (!building.trim()) {
       nextErrors.building = 'Building is required.';
+    }
+
+    if (!floor.trim()) {
+      nextErrors.floor = 'Floor is required.';
     }
 
     if (!unit.trim()) {
@@ -136,6 +215,8 @@ export default function ReportIssue() {
           category,
           urgency,
           building,
+          buildingId,
+          floor,
           unit,
           specificSpot,
           description,
@@ -148,7 +229,38 @@ export default function ReportIssue() {
   };
 
   const handleMediaChange = (event) => {
-    const selectedFiles = Array.from(event.target.files || []).slice(0, 5);
+    const selectedFiles = Array.from(event.target.files || []);
+    
+    // Check total files
+    if (selectedFiles.length > maxFiles) {
+      setDialog({
+        isOpen: true,
+        title: 'Too Many Files',
+        message: `You can upload a maximum of ${maxFiles} files. You selected ${selectedFiles.length}.`,
+        type: 'error'
+      });
+      return;
+    }
+
+    // Check file sizes
+    let oversizedFiles = [];
+    selectedFiles.forEach(file => {
+      const fileSizeMB = file.size / (1024 * 1024);
+      if (fileSizeMB > maxFileSizeMB) {
+        oversizedFiles.push(`${file.name} (${fileSizeMB.toFixed(2)} MB)`);
+      }
+    });
+
+    if (oversizedFiles.length > 0) {
+      setDialog({
+        isOpen: true,
+        title: 'Files Too Large',
+        message: `The following files exceed ${maxFileSizeMB}MB:\n${oversizedFiles.join('\n')}`,
+        type: 'error'
+      });
+      return;
+    }
+
     setMediaFiles(selectedFiles);
     setMediaMeta(
       selectedFiles.map((file) => ({
@@ -169,6 +281,13 @@ export default function ReportIssue() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <Dialog 
+        isOpen={dialog.isOpen}
+        title={dialog.title}
+        message={dialog.message}
+        type={dialog.type}
+        onClose={() => setDialog({ ...dialog, isOpen: false })}
+      />
       <nav className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-8 py-3 flex items-center justify-between">
           <Logo size={32} textClassName="text-lg font-bold text-gray-900" />
@@ -307,7 +426,7 @@ export default function ReportIssue() {
               <div className="text-xs font-semibold text-slate-700">
                 SECTION 2: WHERE IS IT? <span className="text-red-500">*</span>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-slate-700">
                     Building <span className="text-red-500">*</span>
@@ -315,7 +434,7 @@ export default function ReportIssue() {
                   <input
                     value={building}
                     readOnly
-                    className={`mt-2 w-full border rounded-lg px-3 py-2 text-sm text-slate-700 bg-slate-50 ${
+                    className={`mt-2 w-full border rounded-lg px-3 py-2 text-sm text-slate-700 bg-slate-100 ${
                       errors.building ? 'border-red-300' : 'border-slate-200'
                     }`}
                     aria-invalid={Boolean(errors.building)}
@@ -325,12 +444,27 @@ export default function ReportIssue() {
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-700">
+                    Floor <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    value={floor}
+                    readOnly
+                    className={`mt-2 w-full border rounded-lg px-3 py-2 text-sm text-slate-700 bg-slate-100 ${
+                      errors.floor ? 'border-red-300' : 'border-slate-200'
+                    }`}
+                    aria-invalid={Boolean(errors.floor)}
+                    required
+                  />
+                  {errors.floor && <p className="text-[10px] text-red-600 mt-1">{errors.floor}</p>}
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700">
                     Unit <span className="text-red-500">*</span>
                   </label>
                   <input
                     value={unit}
                     readOnly
-                    className={`mt-2 w-full border rounded-lg px-3 py-2 text-sm text-slate-700 bg-slate-50 ${
+                    className={`mt-2 w-full border rounded-lg px-3 py-2 text-sm text-slate-700 bg-slate-100 ${
                       errors.unit ? 'border-red-300' : 'border-slate-200'
                     }`}
                     aria-invalid={Boolean(errors.unit)}
@@ -384,29 +518,43 @@ export default function ReportIssue() {
               <div>
                 <label className="text-xs font-semibold text-slate-700">Photos/Video (Optional)</label>
                 <div className="mt-2 border border-dashed border-slate-300 rounded-lg p-5 text-center text-xs text-slate-500 bg-slate-50">
-                  <label className="inline-flex items-center justify-center px-3 py-1.5 text-xs font-semibold text-blue-600 border border-blue-200 rounded-lg cursor-pointer">
+                  <label className="inline-flex items-center justify-center px-3 py-1.5 text-xs font-semibold text-blue-600 border border-blue-200 rounded-lg cursor-pointer hover:bg-blue-50">
                     Upload Files
                     <input
                       type="file"
                       className="hidden"
                       multiple
-                      accept="image/*,video/*"
+                      accept="image/*,video/*,audio/*"
                       onChange={handleMediaChange}
                     />
                   </label>
-                  <div className="mt-1">Max 5 files, 10MB each.</div>
+                  <div className="mt-2 text-[11px] text-slate-500">
+                    <div>Max {maxFiles} files, {maxFileSizeMB}MB each</div>
+                    <div className="text-slate-400">Supports: Images, Videos, Audio</div>
+                  </div>
                   {mediaPreviews.length > 0 && (
-                    <div className="mt-3 grid grid-cols-3 gap-2 text-left">
-                      {mediaPreviews.map((preview) => (
-                        <div key={preview.url} className="border border-slate-200 rounded-lg p-2 bg-white">
-                          {preview.type.startsWith('image') ? (
-                            <img src={preview.url} alt={preview.name} className="w-full h-16 object-cover rounded" />
-                          ) : (
-                            <video src={preview.url} className="w-full h-16 object-cover rounded" />
-                          )}
-                          <p className="mt-1 text-[10px] text-slate-500 truncate">{preview.name}</p>
-                        </div>
-                      ))}
+                    <div className="mt-4">
+                      <div className="text-slate-600 font-semibold text-xs mb-2">
+                        {mediaPreviews.length} file{mediaPreviews.length !== 1 ? 's' : ''} selected
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-left">
+                        {mediaPreviews.map((preview) => (
+                          <div key={preview.url} className="border border-slate-200 rounded-lg p-2 bg-white">
+                            {preview.type.startsWith('image') ? (
+                              <img src={preview.url} alt={preview.name} className="w-full h-16 object-cover rounded" />
+                            ) : preview.type.startsWith('video') ? (
+                              <video src={preview.url} className="w-full h-16 object-cover rounded" />
+                            ) : (
+                              <div className="w-full h-16 bg-slate-100 rounded flex items-center justify-center">
+                                <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12 6-12 6z" />
+                                </svg>
+                              </div>
+                            )}
+                            <p className="mt-1 text-[10px] text-slate-500 truncate">{preview.name}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -418,15 +566,30 @@ export default function ReportIssue() {
             <section className="space-y-3">
               <div className="text-xs font-semibold text-slate-700">SECTION 4: ACCESS & PREFERENCES</div>
               <label className="flex items-start gap-3 text-xs text-slate-600">
-                <input type="checkbox" className="mt-1" />
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={specialArrangements.specialAccess}
+                  onChange={(event) => setSpecialArrangements((prev) => ({ ...prev, specialAccess: event.target.checked }))}
+                />
                 <span>I need special access arrangements.</span>
               </label>
               <label className="flex items-start gap-3 text-xs text-slate-600">
-                <input type="checkbox" className="mt-1" />
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={specialArrangements.petsInUnit}
+                  onChange={(event) => setSpecialArrangements((prev) => ({ ...prev, petsInUnit: event.target.checked }))}
+                />
                 <span>Pets in the unit.</span>
               </label>
               <label className="flex items-start gap-3 text-xs text-slate-600">
-                <input type="checkbox" className="mt-1" />
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={specialArrangements.callBeforeArriving}
+                  onChange={(event) => setSpecialArrangements((prev) => ({ ...prev, callBeforeArriving: event.target.checked }))}
+                />
                 <span>Call before arriving. I prefer maintenance staff call me 30 minutes prior.</span>
               </label>
 

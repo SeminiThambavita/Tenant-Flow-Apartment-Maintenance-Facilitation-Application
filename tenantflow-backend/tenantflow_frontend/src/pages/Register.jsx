@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../api';
 import Logo from '../components/Logo';
+import Dialog from '../components/Dialog';
 import { validateTenantRegistration } from '../utils/tenantRegisterValidation';
 
 function FieldError({ message }) {
@@ -11,6 +12,8 @@ function FieldError({ message }) {
 
 export default function Register() {
   const [userType, setUserType] = useState('tenant');
+  const [buildings, setBuildings] = useState([]);
+  const [loadingBuildings, setLoadingBuildings] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -18,25 +21,46 @@ export default function Register() {
     confirmPassword: '',
     phone: '',
     nic: '',
-    buildingName: '',
-    unitNumber: '',
-    floorNumber: '',
+    buildingId: '',
+    floor: '',
+    unit: '',
     moveInDate: '',
     primaryContactName: '',
     primaryContactPhone: '',
     securityQuestion: 'What street did you grow up on?',
     securityAnswer: '',
+    profilePhoto: null,
   });
+  const [floors, setFloors] = useState([]);
+  const [units, setUnits] = useState([]);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isResident, setIsResident] = useState(false);
   const [agreedToMaintenance, setAgreedToMaintenance] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const [dialog, setDialog] = useState({ isOpen: false, title: '', message: '', type: 'info', buttons: [] });
   const navigate = useNavigate();
 
+  // Load buildings on mount
+  useEffect(() => {
+    const loadBuildings = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/buildings');
+        const data = await response.json();
+        setBuildings(data.buildings || []);
+      } catch (err) {
+        console.error('Failed to load buildings:', err);
+        setError('Failed to load buildings. Please refresh the page.');
+      } finally {
+        setLoadingBuildings(false);
+      }
+    };
+    loadBuildings();
+  }, []);
+
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, files } = e.target;
     if (fieldErrors[name]) {
       setFieldErrors((prev) => {
         const next = { ...prev };
@@ -44,23 +68,51 @@ export default function Register() {
         return next;
       });
     }
-    setFormData({ ...formData, [name]: value });
+    if (type === 'file') {
+      setFormData({ ...formData, [name]: files ? files[0] : null });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
+  };
+
+  const handleBuildingChange = (e) => {
+    const buildingId = e.target.value;
+    setFormData({ ...formData, buildingId, floor: '', unit: '' });
+    setUnits([]);
+
+    if (buildingId) {
+      const building = buildings.find(b => b._id === buildingId);
+      if (building) {
+        setFloors(building.floors.map(f => f.floorNumber).sort((a, b) => a - b));
+      }
+    } else {
+      setFloors([]);
+    }
+  };
+
+  const handleFloorChange = (e) => {
+    const floorNumber = Number(e.target.value);
+    setFormData({ ...formData, floor: floorNumber, unit: '' });
+
+    if (formData.buildingId && floorNumber) {
+      const building = buildings.find(b => b._id === formData.buildingId);
+      if (building) {
+        const floor = building.floors.find(f => f.floorNumber === floorNumber);
+        if (floor) {
+          // Show only available units (not occupied)
+          const availableUnits = floor.units.filter(u => !u.occupied);
+          setUnits(availableUnits.map(u => u.unitNumber));
+        }
+      }
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
-    const validationErrors = validateTenantRegistration({
-      ...formData,
-      isResident,
-      agreedToTerms,
-      agreedToMaintenance
-    });
-
-    if (Object.keys(validationErrors).length > 0) {
-      setFieldErrors(validationErrors);
-      setError(validationErrors.agreements || 'Please fix the highlighted fields.');
+    if (!formData.buildingId || !formData.floor || !formData.unit) {
+      setError('Please select a building, floor, and unit.');
       return;
     }
 
@@ -68,23 +120,51 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const data = {
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        phone: formData.phone,
-        nic: formData.nic,
-        buildingName: formData.buildingName,
-        unitNumber: formData.unitNumber,
-        floorNumber: formData.floorNumber,
-        profileImage: 'https://via.placeholder.com/150',
-      };
+      // Create FormData to support file upload
+      const payload = new FormData();
+      payload.append('name', formData.name);
+      payload.append('email', formData.email);
+      payload.append('password', formData.password);
+      payload.append('phone', formData.phone);
+      payload.append('nic', formData.nic);
+      payload.append('buildingId', formData.buildingId);
+      payload.append('floor', Number(formData.floor));
+      payload.append('unit', formData.unit);
 
-      await authAPI.tenantRegister(data);
-      alert('Tenant registered successfully! You can now sign in.');
-      navigate('/login', { state: { role: 'tenant' } });
+      // Append profile photo if selected
+      if (formData.profilePhoto) {
+        payload.append('profilePhoto', formData.profilePhoto);
+      }
+
+      await authAPI.tenantRegister(payload);
+      setDialog({
+        isOpen: true,
+        title: '✓ Registration Successful!',
+        message: 'Your tenant account has been created. You can now sign in with your email and password.',
+        type: 'success',
+        buttons: [
+          {
+            label: 'Go to Login',
+            onClick: () => navigate('/login', { state: { role: 'tenant' } }),
+            closeDialog: true
+          }
+        ]
+      });
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      const errorMessage = err.response?.data?.message || 'Registration failed. Please try again.';
+      setDialog({
+        isOpen: true,
+        title: 'Registration Failed',
+        message: errorMessage,
+        type: 'error',
+        buttons: [
+          {
+            label: 'Try Again',
+            onClick: () => {},
+            closeDialog: true
+          }
+        ]
+      });
     } finally {
       setLoading(false);
     }
@@ -92,6 +172,14 @@ export default function Register() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
+      <Dialog 
+        isOpen={dialog.isOpen}
+        title={dialog.title}
+        message={dialog.message}
+        type={dialog.type}
+        buttons={dialog.buttons}
+        onClose={() => setDialog({ ...dialog, isOpen: false })}
+      />
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -184,6 +272,20 @@ export default function Register() {
                 />
                 <FieldError message={fieldErrors.nic} />
               </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Profile Photo (Optional)
+                </label>
+                <input
+                  type="file"
+                  name="profilePhoto"
+                  onChange={handleInputChange}
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">Allowed formats: JPG, PNG, GIF, WebP (Max 5MB)</p>
+              </div>
             </div>
           </div>
 
@@ -195,59 +297,87 @@ export default function Register() {
             <div className="grid grid-cols-2 gap-6 mb-6">
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Building/Complex Name <span className="text-red-500">*</span>
+                  Building <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  name="buildingName"
-                  value={formData.buildingName}
-                  onChange={handleInputChange}
-                  placeholder="e.g. Celestial Towers"
-                  className={`w-full px-4 py-2 border rounded-lg text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 ${
-                    fieldErrors.buildingName ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
-                  }`}
-                  required
-                />
-                <FieldError message={fieldErrors.buildingName} />
+                {loadingBuildings ? (
+                  <p className="text-gray-500">Loading buildings...</p>
+                ) : (
+                  <select
+                    name="buildingId"
+                    value={formData.buildingId}
+                    onChange={handleBuildingChange}
+                    className={`w-full px-4 py-2 border rounded-lg text-gray-700 focus:outline-none focus:ring-2 ${
+                      fieldErrors.buildingId ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                    }`}
+                    required
+                  >
+                    <option value="">Select a Building</option>
+                    {buildings.map((building) => (
+                      <option key={building._id} value={building._id}>
+                        {building.name} ({building.address}, {building.city})
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <FieldError message={fieldErrors.buildingId} />
               </div>
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Unit Number <span className="text-red-500">*</span>
+                  Floor <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  name="unitNumber"
-                  value={formData.unitNumber}
-                  onChange={handleInputChange}
-                  placeholder="e.g. A-12"
-                  className={`w-full px-4 py-2 border rounded-lg text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 ${
-                    fieldErrors.unitNumber ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
-                  }`}
+                <select
+                  name="floor"
+                  value={formData.floor}
+                  onChange={handleFloorChange}
+                  disabled={!formData.buildingId}
+                  className={`w-full px-4 py-2 border rounded-lg text-gray-700 focus:outline-none focus:ring-2 ${
+                    !formData.buildingId ? 'bg-gray-100 cursor-not-allowed' : 'border-gray-300 focus:ring-blue-500'
+                  } ${fieldErrors.floor ? 'border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
                   required
-                />
-                <FieldError message={fieldErrors.unitNumber} />
+                >
+                  <option value="">Select a Floor</option>
+                  {floors.map((floor) => (
+                    <option key={floor} value={floor}>
+                      Floor {floor}
+                    </option>
+                  ))}
+                </select>
+                <FieldError message={fieldErrors.floor} />
               </div>
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Floor Number <span className="text-red-500">*</span>
+                  Unit <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  name="floorNumber"
-                  value={formData.floorNumber}
+                <select
+                  name="unit"
+                  value={formData.unit}
                   onChange={handleInputChange}
-                  placeholder="e.g. 12"
-                  className={`w-full px-4 py-2 border rounded-lg text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 ${
-                    fieldErrors.floorNumber ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
-                  }`}
+                  disabled={!formData.floor || units.length === 0}
+                  className={`w-full px-4 py-2 border rounded-lg text-gray-700 focus:outline-none focus:ring-2 ${
+                    !formData.floor || units.length === 0 ? 'bg-gray-100 cursor-not-allowed' : 'border-gray-300 focus:ring-blue-500'
+                  } ${fieldErrors.unit ? 'border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
                   required
-                />
-                <FieldError message={fieldErrors.floorNumber} />
+                >
+                  <option value="">
+                    {units.length === 0 ? 'No available units' : 'Select a Unit'}
+                  </option>
+                  {units.map((unit) => (
+                    <option key={unit} value={unit}>
+                      Unit {unit}
+                    </option>
+                  ))}
+                </select>
+                {units.length === 0 && formData.floor && (
+                  <p className="text-xs text-red-500 mt-1">No available units on this floor. Please select a different floor.</p>
+                )}
+                <FieldError message={fieldErrors.unit} />
               </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Move-in Date <span className="text-red-500">*</span>
+                Move-in Date
               </label>
               <input
                 type="date"
@@ -255,7 +385,6 @@ export default function Register() {
                 value={formData.moveInDate}
                 onChange={handleInputChange}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
               />
             </div>
           </div>
