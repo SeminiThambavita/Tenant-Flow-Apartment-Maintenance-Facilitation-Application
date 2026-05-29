@@ -32,6 +32,45 @@ const normalizeInvoice = (invoice) => ({
   }
 });
 
+const REQUEST_STATUS_FLOW = [
+  { value: 'new', label: 'New', dot: 'bg-blue-600', bar: 'bg-blue-500' },
+  { value: 'assigned', label: 'Assigned', dot: 'bg-blue-600', bar: 'bg-blue-500' },
+  { value: 'in progress', label: 'In Progress', dot: 'bg-emerald-600', bar: 'bg-emerald-500' },
+  { value: 'completed', label: 'Completed', dot: 'bg-amber-500', bar: 'bg-amber-400' },
+  { value: 'cost report submitted', label: 'Cost Report Submitted', dot: 'bg-violet-600', bar: 'bg-violet-500' },
+  { value: 'invoice issued', label: 'Invoice Issued', dot: 'bg-sky-600', bar: 'bg-sky-500' },
+  { value: 'payment done', label: 'Payment Done', dot: 'bg-emerald-600', bar: 'bg-emerald-500' },
+  { value: 'task done', label: 'Task Done', dot: 'bg-teal-600', bar: 'bg-teal-500' },
+];
+
+const buildRequestTimeline = (issue) => {
+  const currentStatus = normalizeStatus(issue?.status || 'new');
+  const historyEntries = Array.isArray(issue?.statusHistory) ? issue.statusHistory : [];
+  const historyMap = new Map();
+
+  historyEntries.forEach((entry) => {
+    const normalized = normalizeStatus(entry.status);
+    if (!normalized) return;
+    historyMap.set(normalized, entry);
+  });
+
+  const currentIndex = REQUEST_STATUS_FLOW.findIndex((item) => item.value === currentStatus);
+
+  return REQUEST_STATUS_FLOW.map((step, index) => {
+    const historyEntry = historyMap.get(step.value);
+    const reached = currentIndex >= 0 ? index <= currentIndex : Boolean(historyEntry) || step.value === currentStatus;
+    const active = step.value === currentStatus;
+
+    return {
+      ...step,
+      reached,
+      active,
+      timestamp: historyEntry?.changedAt || (active ? issue?.updatedAt || issue?.createdAt : null),
+      reason: historyEntry?.reason || '',
+    };
+  });
+};
+
 export default function TenantDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -177,6 +216,31 @@ export default function TenantDashboard() {
     return new Date(dateValue).toLocaleDateString();
   };
 
+  const pendingInvoices = invoices
+    .filter((invoice) => ['submitted', 'pending', 'overdue'].includes(String(invoice.status || '').toLowerCase()))
+    .sort((left, right) => {
+      const statusOrder = { overdue: 0, pending: 1, submitted: 2 };
+      const leftStatus = String(left.status || '').toLowerCase();
+      const rightStatus = String(right.status || '').toLowerCase();
+      const orderDiff = (statusOrder[leftStatus] ?? 99) - (statusOrder[rightStatus] ?? 99);
+      if (orderDiff !== 0) {
+        return orderDiff;
+      }
+
+      return new Date(left.dueDate || left.issuedAt || 0) - new Date(right.dueDate || right.issuedAt || 0);
+    });
+
+  const openPaymentPage = (invoice) => {
+    if (!invoice?._id) {
+      return;
+    }
+
+    localStorage.setItem('pendingInvoiceId', invoice._id);
+    localStorage.setItem('pendingInvoiceLabel', invoice.invoiceNumber || invoice.issueTitle || 'Maintenance Payment');
+    setSelectedInvoice(null);
+    navigate('/payment', { state: { invoice } });
+  };
+
   const fetchInvoices = async () => {
     setInvoiceLoading(true);
     setInvoiceError('');
@@ -308,6 +372,11 @@ export default function TenantDashboard() {
     };
   });
 
+  const hiddenTenantStatuses = new Set(['cost report submitted', 'cost report approved', 'cost report rejected']);
+  const visibleRequests = role === 'tenant'
+    ? activeRequests.filter((req) => !hiddenTenantStatuses.has(normalizeStatus(req.statusKey)))
+    : activeRequests;
+
   const todayNotifications = notifications.filter((notification) => isSameDay(notification.createdAt));
   const recentActivity = todayNotifications.slice(0, 3);
   const unreadCount = notifications.filter((notification) => !notification.read).length;
@@ -354,13 +423,14 @@ export default function TenantDashboard() {
       technician: issue.assignedTo?.name || 'Maintenance Team',
     }));
 
-  const openRequestsCount = activeRequests.filter((req) => isOpenStatus(req.statusKey)).length;
-  const completedRequestsCount = activeRequests.filter((req) => isCompletedStatus(req.statusKey)).length;
+  const openRequestsCount = visibleRequests.filter((req) => normalizeStatus(req.statusKey) === 'new').length;
+  const completedRequestsCount = visibleRequests.filter((req) => normalizeStatus(req.statusKey) === 'completed').length;
+  const taskDoneCount = visibleRequests.filter((req) => normalizeStatus(req.statusKey) === 'task done').length;
 
   const filteredRequests =
     filterStatus === 'all'
-      ? activeRequests
-      : activeRequests.filter((req) => req.statusKey === filterStatus);
+      ? visibleRequests
+      : visibleRequests.filter((req) => normalizeStatus(req.statusKey) === normalizeStatus(filterStatus));
 
   const handleFilterChange = (status) => {
     setFilterStatus((prev) => (prev === status ? 'all' : status));
@@ -373,7 +443,8 @@ export default function TenantDashboard() {
     'in progress': 'In Progress',
     completed: 'Completed',
     'done and payment pending': 'Done & Payment Pending',
-    'payment successful': 'Payment Successful',
+    'payment done': 'Payment Done',
+    'task done': 'Task Done',
   };
 
   const activeFilterLabel = filterLabelMap[filterStatus] || 'All';
@@ -429,7 +500,7 @@ export default function TenantDashboard() {
       return 'Invoice Submitted';
     }
     if (String(status || '').toLowerCase() === 'paid') {
-      return 'Payment Successful';
+      return 'Payment Done';
     }
     return status;
   };
@@ -580,7 +651,7 @@ export default function TenantDashboard() {
               </div>
 
               {/* Stats Cards */}
-              <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="grid grid-cols-3 gap-4 mb-6">
             <button
               type="button"
               onClick={() => handleFilterChange('new')}
@@ -600,9 +671,9 @@ export default function TenantDashboard() {
 
             <button
               type="button"
-              onClick={() => handleFilterChange('done and payment pending')}
+              onClick={() => handleFilterChange('completed')}
               className={`bg-gradient-to-br from-green-50 to-green-100 rounded-xl shadow-sm p-5 border-2 hover:shadow-md transition text-left ${
-                filterStatus === 'done and payment pending' ? 'border-green-500 ring-1 ring-green-300' : 'border-green-100'
+                filterStatus === 'completed' ? 'border-green-500 ring-1 ring-green-300' : 'border-green-100'
               }`}
             >
               <div className="flex items-center justify-between">
@@ -612,6 +683,23 @@ export default function TenantDashboard() {
                   <p className="text-green-700 text-xs mt-3">Tasks resolved</p>
                 </div>
                 <div className="text-4xl">✅</div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleFilterChange('task done')}
+              className={`bg-gradient-to-br from-teal-50 to-teal-100 rounded-xl shadow-sm p-5 border-2 hover:shadow-md transition text-left ${
+                filterStatus === 'task done' ? 'border-teal-500 ring-1 ring-teal-300' : 'border-teal-100'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-teal-600 text-xs font-bold mb-2 uppercase tracking-wide">Task Done</p>
+                  <p className="text-4xl font-bold text-teal-900">{taskDoneCount}</p>
+                  <p className="text-teal-700 text-xs mt-3">Ready for closure</p>
+                </div>
+                <div className="text-4xl">🧾</div>
               </div>
             </button>
           </div>
@@ -722,17 +810,52 @@ export default function TenantDashboard() {
               <div className="bg-gradient-to-br from-slate-500 via-slate-600 to-slate-700 rounded-xl shadow-lg p-4 text-white">
                 <h3 className="text-sm font-bold mb-2">Quick Actions</h3>
 
-                {/* Payment Due */}
-                <div className="bg-white rounded-lg p-3 text-slate-900">
-                  <p className="text-xs font-semibold">Payment Due</p>
-                  <p className="text-xs text-slate-600 mt-1">Leaky faucet repair (kitchen sink)</p>
-                  <button
-                    type="button"
-                    onClick={() => navigate('/payment')}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-lg mt-3 transition"
-                  >
-                    💳 Pay Now
-                  </button>
+                <div className="space-y-3 max-h-[28rem] overflow-y-auto pr-1">
+                  {pendingInvoices.length === 0 ? (
+                    <div className="bg-white rounded-lg p-3 text-slate-900">
+                      <p className="text-xs font-semibold">Payment Pending</p>
+                      <p className="text-xs text-slate-600 mt-1">No pending invoices at the moment.</p>
+                    </div>
+                  ) : (
+                    pendingInvoices.map((invoice) => (
+                      <div key={invoice._id} className="bg-white rounded-lg p-3 text-slate-900">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-amber-700">Payment Pending</p>
+                            <p className="text-sm font-bold text-slate-900 truncate">
+                              {invoice.issueTitle || invoice.invoiceNumber || 'Maintenance invoice'}
+                            </p>
+                            <p className="text-[11px] text-slate-500 mt-1">{invoice.invoiceNumber || invoice._id}</p>
+                            <p className="text-xs text-slate-600 mt-1 truncate">
+                              {invoice.locationLabel || 'Pending maintenance charge'}
+                            </p>
+                          </div>
+                          <span
+                            className={`shrink-0 px-2 py-1 rounded-full text-[10px] font-bold ${
+                              String(invoice.status || '').toLowerCase() === 'overdue'
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-amber-100 text-amber-700'
+                            }`}
+                          >
+                            {formatInvoiceStatus(invoice.status)}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 flex items-center justify-between gap-3">
+                          <span className="text-xs font-semibold text-slate-700">
+                            LKR {Number(invoice.total || 0).toFixed(2)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => openPaymentPage(invoice)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-lg text-xs transition"
+                          >
+                            💳 Pay Now
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -1002,16 +1125,53 @@ export default function TenantDashboard() {
                 Close
               </button>
             </div>
-            <div className="mt-4 space-y-2 text-xs text-slate-600">
-              <div className="flex justify-between">
-                <span className="font-semibold">Status:</span>
-                <span>{selectedRequest.status}</span>
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Status Progress</p>
+                <p className="text-[10px] text-slate-500">Live updates while this panel is open</p>
               </div>
-              <div className="flex justify-between">
+              <div className="overflow-x-auto pb-2">
+                <div className="flex items-start min-w-[760px]">
+                  {buildRequestTimeline(selectedRequest.raw).map((step, index, steps) => (
+                    <div key={step.value} className="flex items-start flex-1 min-w-[92px]">
+                      <div className="flex flex-col items-center flex-1">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition ${step.reached ? step.dot : 'bg-slate-100 border-slate-200'}`}>
+                          <span className={`text-[10px] font-black ${step.reached ? 'text-white' : 'text-slate-400'}`}>
+                            {index + 1}
+                          </span>
+                        </div>
+                        <p className={`mt-2 text-[10px] leading-tight text-center font-semibold ${step.active ? 'text-slate-900' : step.reached ? 'text-slate-700' : 'text-slate-400'}`}>
+                          {step.label}
+                        </p>
+                        <p className="mt-1 text-[10px] text-center text-slate-400 min-h-[1.5rem]">
+                          {step.timestamp ? new Date(step.timestamp).toLocaleString() : 'Pending'}
+                        </p>
+                        {step.reason && (
+                          <p className="mt-1 text-[10px] text-center text-slate-500 line-clamp-2 max-w-[95px]">
+                            {step.reason}
+                          </p>
+                        )}
+                      </div>
+                      {index < steps.length - 1 && (
+                        <div className="flex-1 px-2 pt-4">
+                          <div className={`h-1 rounded-full transition ${step.reached ? step.bar : 'bg-slate-200'}`} />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 space-y-2 text-xs text-slate-600 border-t border-slate-100 pt-4">
+              <div className="flex justify-between gap-3">
+                <span className="font-semibold">Current Status:</span>
+                <span className="text-right">{selectedRequest.status}</span>
+              </div>
+              <div className="flex justify-between gap-3">
                 <span className="font-semibold">Urgency:</span>
                 <span>{selectedRequest.urgency}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <span className="font-semibold">Reported:</span>
                 <span>{selectedRequest.date}</span>
               </div>
@@ -1114,7 +1274,7 @@ export default function TenantDashboard() {
               {['submitted', 'pending', 'overdue'].includes(String(selectedInvoice.status || '').toLowerCase()) && (
                 <button
                   type="button"
-                  onClick={() => navigate('/payment', { state: { invoice: selectedInvoice } })}
+                  onClick={() => openPaymentPage(selectedInvoice)}
                   className="px-3 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg"
                 >
                   Pay Now

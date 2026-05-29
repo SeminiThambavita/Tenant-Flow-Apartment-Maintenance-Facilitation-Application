@@ -4,6 +4,7 @@ import { issueAPI } from '../api';
 import StaffNav from '../components/StaffNav';
 import IssueMediaGallery from '../components/IssueMediaGallery';
 import usePolling from '../hooks/usePolling';
+import { broadcastStatusRefresh } from '../utils/statusRefresh';
 import { formatStatusLabel, getStatusBadgeTheme, normalizeStatus } from '../utils/issueStatus';
 
 const ISSUE_LABELS = {
@@ -38,6 +39,44 @@ const getSpecialArrangements = (value) => {
     { key: 'petsInUnit', label: 'Pets in the unit' },
     { key: 'callBeforeArriving', label: 'Call before arriving' },
   ].filter((item) => Boolean(value?.[item.key]));
+};
+
+const TASK_STATUS_FLOW = [
+  { value: 'new', label: 'New', dot: 'bg-blue-600', bar: 'bg-blue-500' },
+  { value: 'assigned', label: 'Assigned', dot: 'bg-blue-600', bar: 'bg-blue-500' },
+  { value: 'in progress', label: 'In Progress', dot: 'bg-emerald-600', bar: 'bg-emerald-500' },
+  { value: 'completed', label: 'Completed', dot: 'bg-amber-500', bar: 'bg-amber-400' },
+  { value: 'cost report submitted', label: 'Cost Report Submitted', dot: 'bg-violet-600', bar: 'bg-violet-500' },
+  { value: 'invoice issued', label: 'Invoice Issued', dot: 'bg-sky-600', bar: 'bg-sky-500' },
+  { value: 'payment done', label: 'Payment Done', dot: 'bg-emerald-600', bar: 'bg-emerald-500' },
+  { value: 'task done', label: 'Task Done', dot: 'bg-teal-600', bar: 'bg-teal-500' },
+];
+
+const buildTaskTimeline = (issue) => {
+  const currentStatus = normalizeStatus(issue?.status || 'new');
+  const statusHistory = Array.isArray(issue?.statusHistory) ? issue.statusHistory : [];
+  const historyMap = new Map();
+
+  statusHistory.forEach((entry) => {
+    const normalized = normalizeStatus(entry.status);
+    if (!normalized) return;
+    historyMap.set(normalized, entry);
+  });
+
+  const currentIndex = TASK_STATUS_FLOW.findIndex((step) => step.value === currentStatus);
+
+  return TASK_STATUS_FLOW.map((step, index) => {
+    const historyEntry = historyMap.get(step.value);
+    const reached = currentIndex >= 0 ? index <= currentIndex : Boolean(historyEntry) || step.value === currentStatus;
+
+    return {
+      ...step,
+      reached,
+      active: step.value === currentStatus,
+      timestamp: historyEntry?.changedAt || (step.value === currentStatus ? issue?.updatedAt || issue?.createdAt : null),
+      reason: historyEntry?.reason || '',
+    };
+  });
 };
 
 export default function StaffTaskDetail() {
@@ -80,6 +119,7 @@ export default function StaffTaskDetail() {
     try {
       const response = await issueAPI.update(id, { status: nextStatus });
       setIssue(response?.data?.issue || null);
+      broadcastStatusRefresh();
       
       // Show cost report form if task is being marked as completed
       if (nextStatus === 'completed') {
@@ -124,6 +164,50 @@ export default function StaffTaskDetail() {
                 <span className={`inline-flex items-center justify-center min-w-[8.5rem] px-3.5 py-1 rounded-full whitespace-nowrap text-xs font-semibold ${getStatusBadgeTheme(issue.status, 'pill').className}`}>
                   {getStatusBadgeTheme(issue.status, 'pill').text}
                 </span>
+              </div>
+
+              <div className="mt-5 rounded-xl border border-[#E5E8F1] bg-[#F8F9FC] p-4">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div>
+                    <p className="text-[11px] font-semibold text-[#8A96B7] uppercase tracking-wide">Status Cycle</p>
+                    <p className="text-xs text-[#7681A8] mt-1">Live updates while you keep this task open</p>
+                  </div>
+                  <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-[11px] font-semibold ${getStatusBadgeTheme(issue.status, 'pill').className}`}>
+                    {formatStatusLabel(issue.status)}
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto pb-2">
+                  <div className="flex items-start min-w-[760px]">
+                    {buildTaskTimeline(issue).map((step, index, steps) => (
+                      <div key={step.value} className="flex items-start flex-1 min-w-[92px]">
+                        <div className="flex flex-col items-center flex-1">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition ${step.reached ? step.dot : 'bg-white border-[#D7DBE8]'}`}>
+                            <span className={`text-[10px] font-black ${step.reached ? 'text-white' : 'text-[#9AA4C3]'}`}>
+                              {index + 1}
+                            </span>
+                          </div>
+                          <p className={`mt-2 text-[10px] leading-tight text-center font-semibold ${step.active ? 'text-[#171A2A]' : step.reached ? 'text-[#4B5678]' : 'text-[#A1A9C7]'}`}>
+                            {step.label}
+                          </p>
+                          <p className="mt-1 text-[10px] text-center text-[#8A96B7] min-h-[1.5rem]">
+                            {step.timestamp ? new Date(step.timestamp).toLocaleString() : 'Pending'}
+                          </p>
+                          {step.reason && (
+                            <p className="mt-1 text-[10px] text-center text-[#7B87AD] max-w-[95px] line-clamp-2">
+                              {step.reason}
+                            </p>
+                          )}
+                        </div>
+                        {index < steps.length - 1 && (
+                          <div className="flex-1 px-2 pt-4">
+                            <div className={`h-1 rounded-full transition ${step.reached ? step.bar : 'bg-[#DDE2F0]'}`} />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               {error && <p className="mt-3 text-xs text-red-600">{error}</p>}

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { invoiceAPI } from '../api';
 import { addNotification } from '../utils/notifications';
+import { broadcastStatusRefresh } from '../utils/statusRefresh';
 
 export default function PaymentSuccess() {
   useEffect(() => {
@@ -12,7 +13,7 @@ export default function PaymentSuccess() {
         addNotification({
           type: 'payment-success',
           referenceId: pendingInvoiceLabel,
-          title: 'Payment successful',
+          title: 'Payment done',
           message: `for ${pendingInvoiceLabel}`,
           target: { path: '/tenant-dashboard', menu: 'invoices' }
         });
@@ -34,12 +35,14 @@ export default function PaymentSuccess() {
     addNotification({
       type: 'payment-success',
       referenceId: pendingInvoiceId,
-      title: 'Payment successful',
+      title: 'Payment done',
       message: pendingInvoiceLabel ? `for ${pendingInvoiceLabel}` : 'for your invoice',
       target: { path: '/tenant-dashboard', menu: 'invoices', invoiceId: pendingInvoiceId }
     });
 
-    invoiceAPI.update(pendingInvoiceId, { status: 'paid' }).catch(() => undefined);
+    invoiceAPI.update(pendingInvoiceId, { status: 'paid' })
+      .then(() => broadcastStatusRefresh())
+      .catch(() => undefined);
   }, []);
 
   return (
@@ -48,7 +51,7 @@ export default function PaymentSuccess() {
         <div className="mx-auto h-12 w-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl">
           ✓
         </div>
-        <h1 className="mt-4 text-xl font-['Space_Grotesk'] font-semibold text-slate-900">Payment Successful</h1>
+        <h1 className="mt-4 text-xl font-['Space_Grotesk'] font-semibold text-slate-900">Payment Done</h1>
         <p className="mt-2 text-sm text-slate-500">Your payment has been completed. Thank you!</p>
         <Link
           to="/tenant-dashboard"

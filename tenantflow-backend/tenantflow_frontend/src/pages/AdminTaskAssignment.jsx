@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { authAPI, issueAPI } from '../api';
 import AdminSidebar from '../components/AdminSidebar';
+import usePolling from '../hooks/usePolling';
+import { broadcastStatusRefresh } from '../utils/statusRefresh';
 
 const ISSUE_LABELS = {
   plumbing: 'Plumbing Issue',
@@ -64,6 +66,25 @@ export default function AdminTaskAssignment() {
 
     loadData();
   }, [navigate, role]);
+
+  usePolling(async () => {
+    if (role !== 'admin') return;
+    try {
+      const [profileResponse, issueResponse, staffResponse] = await Promise.all([
+        authAPI.getProfile(),
+        issueAPI.getAll({ status: 'all' }),
+        authAPI.getApprovedStaff()
+      ]);
+
+      const currentUser = profileResponse?.data?.user || {};
+      setProfileName(currentUser.name || 'Property Manager');
+      setIssues(issueResponse?.data?.issues || []);
+      setStaffMembers(staffResponse?.data?.staff || []);
+    } catch {
+      setIssues([]);
+      setStaffMembers([]);
+    }
+  }, 5000, role === 'admin');
 
   useEffect(() => {
     const selectedIssueId = location.state?.selectedIssueId;
@@ -158,6 +179,7 @@ export default function AdminTaskAssignment() {
         )
       );
 
+      broadcastStatusRefresh();
       const refreshedIssues = await issueAPI.getAll({ status: 'all' });
       setIssues(refreshedIssues?.data?.issues || []);
       clearSelection();

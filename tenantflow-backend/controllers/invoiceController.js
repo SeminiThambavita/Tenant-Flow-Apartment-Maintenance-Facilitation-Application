@@ -23,6 +23,7 @@ const formatIssueLabel = (issue) => {
 const serializeInvoice = (invoiceDoc) => {
   const invoice = typeof invoiceDoc?.toObject === "function" ? invoiceDoc.toObject() : { ...invoiceDoc };
   const issue = invoice.issue || {};
+  const costReport = invoice.costReport || issue.currentCostReport || null;
   const buildingLabel = formatBuildingLabel(invoice.location?.building || issue.building);
   const unitNumber = invoice.location?.unitNumber || issue.unitNumber || issue.unit || "—";
   const issueLabel = formatIssueLabel(issue);
@@ -31,6 +32,7 @@ const serializeInvoice = (invoiceDoc) => {
   return {
     ...invoice,
     issue,
+    costReport,
     taskId,
     taskName: issueLabel,
     issueLabel,
@@ -106,8 +108,20 @@ export const getInvoices = async (req, res) => {
       .sort({ createdAt: -1 })
       .populate({
         path: "issue",
-        select: "issueType specificSpot description building unit unitNumber status",
-        populate: [{ path: "building", select: "name address city" }]
+        select: "issueType specificSpot description building floor unit unitNumber status urgency priority tenant assignedTo propertyManager media statusHistory resolvedAt currentCostReport createdAt updatedAt",
+        populate: [
+          { path: "building", select: "name address city" },
+          { path: "tenant", select: "name email phone" },
+          { path: "assignedTo", select: "name email phone staffType" },
+          { path: "propertyManager", select: "name email phone" },
+          {
+            path: "currentCostReport",
+            populate: [
+              { path: "createdBy", select: "name email" },
+              { path: "approvedBy", select: "name email" }
+            ]
+          }
+        ]
       });
 
     return res.json({ count: invoices.length, invoices: invoices.map(serializeInvoice) });
@@ -118,11 +132,40 @@ export const getInvoices = async (req, res) => {
 
 export const getInvoiceById = async (req, res) => {
   try {
-    const invoice = await Invoice.findById(req.params.id).populate({
-      path: "issue",
-      select: "issueType specificSpot description building unit unitNumber status",
-      populate: [{ path: "building", select: "name address city" }]
-    });
+    const invoice = await Invoice.findById(req.params.id)
+      .populate({
+        path: "issue",
+        select: "issueType specificSpot description building floor unit unitNumber status urgency priority tenant assignedTo propertyManager media statusHistory resolvedAt currentCostReport createdAt updatedAt",
+        populate: [
+          { path: "building", select: "name address city" },
+          { path: "tenant", select: "name email phone apartmentNumber" },
+          { path: "assignedTo", select: "name email phone staffType" },
+          { path: "propertyManager", select: "name email phone" },
+          {
+            path: "currentCostReport",
+            populate: [
+              { path: "createdBy", select: "name email phone" },
+              { path: "approvedBy", select: "name email phone" }
+            ]
+          }
+        ]
+      })
+      .populate({
+        path: "costReport",
+        populate: [
+          { path: "createdBy", select: "name email phone" },
+          { path: "approvedBy", select: "name email phone" },
+          {
+            path: "issue",
+            populate: [
+              { path: "building", select: "name address city" },
+              { path: "tenant", select: "name email phone" },
+              { path: "assignedTo", select: "name email phone staffType" },
+              { path: "propertyManager", select: "name email phone" }
+            ]
+          }
+        ]
+      });
     if (!invoice) {
       return res.status(404).json({ message: "Invoice not found" });
     }
@@ -155,12 +198,24 @@ export const updateInvoice = async (req, res) => {
     if (dueDate) invoice.dueDate = dueDate;
     if (notes != null) invoice.notes = notes;
 
+    if (String(status || invoice.status).toLowerCase() === "paid" && !invoice.paidAt) {
+      invoice.paidAt = new Date();
+    }
+
     await invoice.save();
 
     if (String(invoice.status).toLowerCase() === "paid" && invoice.issue) {
       await Issue.updateOne(
         { _id: invoice.issue },
-        { $set: { status: "payment successful" } }
+        {
+          $set: {
+            status: "payment done",
+            paymentStatus: "completed",
+            paymentCompletedAt: new Date(),
+            paymentAmount: Number(invoice.total || 0),
+            paymentReference: invoice.paymentReference || invoice.invoiceNumber
+          }
+        }
       );
     }
 

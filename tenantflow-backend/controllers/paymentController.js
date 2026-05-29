@@ -2,8 +2,10 @@ import crypto from "crypto";
 import Payment from "../models/Payment.js";
 import Invoice from "../models/Invoice.js";
 import Issue from "../models/Issue.js";
+import Task from "../models/Task.js";
 import mongoose from "mongoose";
 import paymentService from "../services/paymentService.js";
+import { notifyPaymentReceived } from "../services/notificationService.js";
 import verifyPayHereHash from "../utils/verifyPayHereHash.js";
 
 const mapPayHereStatus = (statusCode) => {
@@ -26,9 +28,10 @@ export const initiatePayment = async (req, res) => {
   try {
     const { amount, items, invoiceId } = req.body;
 
-    if (!amount) {
-      return res.status(400).json({ message: "Amount is required" });
+    if (!invoiceId) {
+      return res.status(400).json({ message: "Invoice ID is required" });
     }
+
     const nameParts = String(req.user?.name || "Tenant User").trim().split(" ").filter(Boolean);
     const firstName = nameParts[0] || "Tenant";
     const lastName = nameParts.slice(1).join(" ") || "User";
@@ -47,30 +50,61 @@ export const initiatePayment = async (req, res) => {
       return res.status(400).json({ message: "Tenant profile must include email and phone" });
     }
 
-
-    const orderId = `TF-${crypto.randomUUID()}`;
-
-    let invoice = null;
-    if (invoiceId && mongoose.Types.ObjectId.isValid(invoiceId)) {
-      invoice = await Invoice.findOne({ _id: invoiceId, tenant: req.user._id });
-      if (!invoice) {
-        return res.status(404).json({ message: "Invoice not found" });
-      }
+    if (!mongoose.Types.ObjectId.isValid(invoiceId)) {
+      return res.status(400).json({ message: "Invalid invoice ID" });
     }
 
-    const payment = await Payment.create({
-      tenant: req.user._id,
-      invoice: invoice ? invoice._id : undefined,
-      orderId,
-      amount,
-      items
+    const invoice = await Invoice.findOne({ _id: invoiceId, tenant: req.user._id }).populate({
+      path: "issue",
+      select: "issueType specificSpot description building unitNumber unit tenant assignedTo status"
     });
+
+    if (!invoice) {
+      return res.status(404).json({ message: "Invoice not found" });
+    }
+
+    const issueLabel = invoice.issue
+      ? `${invoice.issue.issueType || "Maintenance"}${invoice.issue.specificSpot || invoice.issue.description ? ` - ${invoice.issue.specificSpot || invoice.issue.description}` : ""}`
+      : invoice.issueTitle || "Maintenance Payment";
+    const taskId = invoice.taskId || invoice.issue?._id?.toString?.() || invoice.issue?._id || invoice.issue?.toString?.() || invoice.issue || null;
+    const taskName = invoice.taskName || issueLabel;
+    const checkoutAmount = Number(amount ?? invoice.total ?? 0);
+    const orderId = `TF-${crypto.randomUUID()}`;
+
+    const checkoutItems = items || invoice.invoiceNumber || invoice.issueTitle || "Maintenance Payment";
 
     const payhere = paymentService.buildPayHerePayload({
       orderId,
-      amount,
-      items,
-      customer
+      amount: checkoutAmount,
+      items: checkoutItems,
+      customer,
+      customFields: {
+        custom_1: invoice.invoiceNumber || "",
+        custom_2: String(taskId || ""),
+        custom_3: String(req.user._id)
+      }
+    });
+
+    const payment = await Payment.create({
+      tenant: req.user._id,
+      invoice: invoice._id,
+      invoiceNumber: invoice.invoiceNumber,
+      taskId,
+      taskName,
+      tenantName: req.user?.name || customer.firstName,
+      tenantEmail: req.user?.email || customer.email,
+      tenantPhone: req.user?.phone || customer.phone,
+      tenantUnit: req.user?.unitNumber || req.user?.apartmentNumber || customer.address,
+      orderId,
+      amount: checkoutAmount,
+      items: checkoutItems,
+      checkoutSnapshot: {
+        orderId,
+        amount: checkoutAmount,
+        items: checkoutItems,
+        customer,
+        payhere
+      }
     });
 
     return res.status(201).json({
@@ -130,15 +164,34 @@ export const handlePaymentNotify = async (req, res) => {
     if (payment.status === "paid" && payment.invoice) {
       const invoice = await Invoice.findOneAndUpdate(
         { _id: payment.invoice },
-        { $set: { status: "paid" } }
+        {
+          $set: {
+            status: "paid",
+            paymentStatus: "completed",
+            paymentMethod: payment.paymentMethod || "payhere",
+            paymentReference: data.payment_id || payment.orderId,
+            paidAt: new Date()
+          }
+        },
+        { new: true }
       ).select("issue");
 
       if (invoice?.issue) {
         await Issue.updateOne(
           { _id: invoice.issue },
-          { $set: { status: "payment successful" } }
+          {
+            $set: {
+              status: "payment done",
+              paymentStatus: "completed",
+              paymentCompletedAt: new Date(),
+              paymentAmount: payment.amount,
+              paymentReference: data.payment_id || payment.orderId
+            }
+          }
         );
       }
+
+      await notifyPaymentReceived(payment.invoice, payment);
     }
 
     return res.status(200).send("OK");
@@ -150,10 +203,126 @@ export const handlePaymentNotify = async (req, res) => {
 // Get payments for current user
 export const getPayments = async (req, res) => {
   try {
-    const payments = await Payment.find({ tenant: req.user._id }).sort({ createdAt: -1 });
+    const payments = await Payment.find({ tenant: req.user._id })
+      .populate({
+        path: "invoice",
+        select: "invoiceNumber issueTitle total status issuedAt dueDate paymentStatus paymentMethod paymentReference paidAt issue tenant taskId taskName location",
+        populate: [
+          { path: "issue", select: "issueType specificSpot building unit unitNumber assignedTo propertyManager status paymentStatus paymentReference", populate: [{ path: "assignedTo", select: "name email staffType" }, { path: "propertyManager", select: "name email" }, { path: "building", select: "name" }] },
+          { path: "tenant", select: "name email phone apartmentNumber unitNumber" }
+        ]
+      })
+      .sort({ createdAt: -1 });
     return res.json({ count: payments.length, payments });
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch payments", error: error.message });
+  }
+};
+
+// Get tenant payments for admin/property manager
+export const getTenantPayments = async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Not authorized to view tenant payments" });
+    }
+
+    const payments = await Payment.find({})
+      .populate({
+        path: "invoice",
+        select: "invoiceNumber issueTitle total status issuedAt dueDate paymentStatus paymentMethod paymentReference paidAt issue tenant taskId taskName location",
+        populate: [
+          {
+            path: "issue",
+            select: "issueType specificSpot building unit unitNumber assignedTo propertyManager status paymentStatus paymentReference",
+            populate: [
+              { path: "assignedTo", select: "name email staffType" },
+              { path: "propertyManager", select: "name email" },
+              { path: "building", select: "name" }
+            ]
+          },
+          { path: "tenant", select: "name email phone apartmentNumber unitNumber" }
+        ]
+      })
+      .populate("tenant", "name email phone apartmentNumber unitNumber")
+      .sort({ createdAt: -1 });
+
+    const visiblePayments = payments.filter((payment) => {
+      const invoice = payment.invoice || {};
+      const issue = invoice.issue || {};
+      const paymentStatus = String(payment.status || '').toLowerCase();
+      const invoiceStatus = String(invoice.paymentStatus || invoice.status || '').toLowerCase();
+      const issueStatus = String(issue.status || issue.paymentStatus || '').toLowerCase();
+
+      return (
+        paymentStatus === "paid" ||
+        invoiceStatus === "completed" ||
+        invoiceStatus === "paid" ||
+        issueStatus === "payment done" ||
+        issueStatus === "task done"
+      );
+    });
+
+    return res.json({ count: visiblePayments.length, payments: visiblePayments });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch tenant payments", error: error.message });
+  }
+};
+
+// Get payments for the logged-in staff member's assigned tasks
+export const getStaffPayments = async (req, res) => {
+  try {
+    if (req.user.role !== "staff") {
+      return res.status(403).json({ message: "Not authorized to view staff payments" });
+    }
+
+    const [assignedTasks, assignedIssues] = await Promise.all([
+      Task.find({ assignedTo: req.user._id }).select("issue assignedTo"),
+      Issue.find({ assignedTo: req.user._id }).select("_id")
+    ]);
+
+    const assignedIssueIds = new Set([
+      ...assignedTasks.map((task) => task.issue?._id?.toString?.() || task.issue?.toString?.()).filter(Boolean),
+      ...assignedIssues.map((issue) => issue._id?.toString?.()).filter(Boolean)
+    ]);
+
+    const payments = await Payment.find({ status: "paid" })
+      .populate({
+        path: "invoice",
+        select: "invoiceNumber issueTitle total status issuedAt dueDate paymentStatus paymentMethod paymentReference paidAt issue tenant taskId taskName location",
+        populate: [
+          {
+            path: "issue",
+            select: "issueType specificSpot building unit unitNumber assignedTo propertyManager status paymentStatus paymentReference",
+            populate: [
+              { path: "assignedTo", select: "name email staffType" },
+              { path: "propertyManager", select: "name email" },
+              { path: "building", select: "name" }
+            ]
+          },
+          { path: "tenant", select: "name email phone apartmentNumber unitNumber" }
+        ]
+      })
+      .populate("tenant", "name email phone apartmentNumber unitNumber")
+      .sort({ createdAt: -1 });
+
+    const visiblePayments = payments.filter((payment) => {
+      const invoice = payment.invoice || {};
+      const issue = invoice.issue || {};
+      const issueId = issue._id?.toString?.() || invoice.issue?.toString?.();
+      const paymentIssueId = payment.taskId?.toString?.() || payment.taskId || invoice.taskId?.toString?.() || invoice.taskId;
+      const paymentStatus = String(payment.status || '').toLowerCase();
+      const invoiceStatus = String(invoice.paymentStatus || invoice.status || '').toLowerCase();
+      const issueStatus = String(issue.status || issue.paymentStatus || '').toLowerCase();
+
+      return (
+        (assignedIssueIds.has(issueId) || assignedIssueIds.has(paymentIssueId?.toString?.())) &&
+        (paymentStatus === "paid" || invoiceStatus === "completed" || invoiceStatus === "paid" || issueStatus === "payment done" || issueStatus === "task done")
+      );
+    });
+
+    return res.json({ count: visiblePayments.length, payments: visiblePayments });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch staff payments", error: error.message });
   }
 };
 

@@ -60,7 +60,7 @@ function RoleSelection() {
       </div>
 
       {/* Role Cards */}
-      <div className="max-w-5xl w-full grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 auto-rows-max">
+      <div className="max-w-5xl w-full grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 auto-rows-fr items-stretch">
         {roles.map((role) => (
           <div
             key={role.id}
@@ -92,24 +92,28 @@ function RoleSelection() {
             <p className="text-gray-600 text-sm mb-6 flex-grow">{role.description}</p>
 
             {/* Button */}
-            <button
-              onClick={role.buttonAction}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors duration-300 mt-auto"
-            >
-              {role.buttonText}
-            </button>
+            <div className="mt-auto w-full">
+              <button
+                onClick={role.buttonAction}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors duration-300"
+              >
+                {role.buttonText}
+              </button>
 
-            {/* Register Link - Only for Tenant and Staff */}
-            {role.showRegister && (
-              <p className="text-sm text-gray-600 mt-4">
-                <a
-                  onClick={role.registerAction}
-                  className="text-blue-600 hover:underline font-semibold cursor-pointer"
-                >
-                  Register
-                </a>
-              </p>
-            )}
+              {/* Register Link - Only for Tenant and Staff */}
+              {role.showRegister ? (
+                <p className="text-sm text-gray-600 mt-4 min-h-[1.25rem]">
+                  <a
+                    onClick={role.registerAction}
+                    className="text-blue-600 hover:underline font-semibold cursor-pointer"
+                  >
+                    Register
+                  </a>
+                </p>
+              ) : (
+                <div className="mt-4 min-h-[1.25rem]" aria-hidden="true" />
+              )}
+            </div>
           </div>
         ))}
       </div>

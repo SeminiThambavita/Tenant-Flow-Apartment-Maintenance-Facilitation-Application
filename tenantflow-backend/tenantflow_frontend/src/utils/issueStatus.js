@@ -4,20 +4,23 @@ export const ISSUE_STATUSES = {
   IN_PROGRESS: 'in progress',
   COMPLETED: 'completed',
   DONE_PAYMENT_PENDING: 'done and payment pending',
-  PAYMENT_SUCCESSFUL: 'payment successful',
+  PAYMENT_DONE: 'payment done',
+  PAYMENT_SUCCESSFUL: 'payment done',
 };
 
 export const normalizeStatus = (status) =>
-  String(status || '')
+  ({
+    'payment successful': 'payment done',
+  }[String(status || '').toLowerCase().trim().replace(/-/g, ' ')] ||
+    String(status || '')
     .toLowerCase()
     .trim()
-    .replace(/-/g, ' ');
+    .replace(/-/g, ' '));
 
 export const formatStatusLabel = (status) => {
   const normalized = normalizeStatus(status);
   if (!normalized) return 'New';
   if (normalized === 'in progress') return 'In Progress';
-  if (normalized === 'payment successful') return 'Payment Successful';
   if (normalized === 'done and payment pending') return 'Done & Payment Pending';
   if (normalized === 'cost report submitted') return 'Cost Report Submitted';
   if (normalized === 'cost report rejected') return 'Cost Report Rejected';
@@ -41,7 +44,7 @@ export const isCompletedStatus = (status) => {
   return (
     key === 'completed' ||
     key === 'done and payment pending' ||
-    key === 'payment successful'
+    key === 'payment done'
   );
 };
 
@@ -72,11 +75,6 @@ export const getStatusBadgeTheme = (status, variant = 'pill') => {
       pill: 'bg-orange-100 text-orange-800 border border-orange-300',
       circle: 'bg-orange-500 text-white border border-orange-600',
       short: 'PEND',
-    },
-    'payment successful': {
-      pill: 'bg-emerald-100 text-emerald-800 border border-emerald-300',
-      circle: 'bg-emerald-600 text-white border border-emerald-700',
-      short: 'PAID',
     },
     'cost report submitted': {
       pill: 'bg-violet-100 text-violet-800 border border-violet-300',

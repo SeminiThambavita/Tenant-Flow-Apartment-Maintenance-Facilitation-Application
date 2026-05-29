@@ -24,7 +24,7 @@ const statusAliasMap = {
   "payment done": "payment done",
   "task done": "task done",
   "done and payment pending": "done and payment pending",
-  "payment successful": "payment successful"
+  "payment successful": "payment done"
 };
 
 const getAssignedStaffId = (issue) => {

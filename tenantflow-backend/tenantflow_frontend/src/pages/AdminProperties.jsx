@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI, issueAPI } from '../api';
 import AdminSidebar from '../components/AdminSidebar';
+import usePolling from '../hooks/usePolling';
 
 const formatStatusLabel = (status) => {
   const normalized = String(status || '').toLowerCase();
@@ -43,6 +44,26 @@ export default function AdminProperties() {
 
     loadData();
   }, [navigate, role]);
+
+  usePolling(async () => {
+    if (role !== 'admin') return;
+
+    try {
+      const [profileResponse, tenantResponse, issueResponse] = await Promise.all([
+        authAPI.getProfile(),
+        authAPI.getTenants(),
+        issueAPI.getAll({ status: 'all' })
+      ]);
+
+      const currentUser = profileResponse?.data?.user || {};
+      setProfileName(currentUser.name || 'Property Manager');
+      setTenants(tenantResponse?.data?.tenants || []);
+      setIssues(issueResponse?.data?.issues || []);
+    } catch {
+      setTenants([]);
+      setIssues([]);
+    }
+  }, 5000, role === 'admin');
 
   const issuesByTenant = useMemo(() => {
     const map = new Map();

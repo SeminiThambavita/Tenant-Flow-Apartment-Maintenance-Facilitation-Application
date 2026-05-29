@@ -19,7 +19,7 @@ const generateHash = ({ orderId, amount, currency }) => {
 };
 
 const paymentService = {
-  buildPayHerePayload: ({ orderId, amount, items, customer }) => {
+  buildPayHerePayload: ({ orderId, amount, items, customer, customFields = {} }) => {
     if (!payhereConfig.merchantId || !payhereConfig.merchantSecret) {
       throw new Error("PayHere merchant configuration is missing");
     }
@@ -40,7 +40,8 @@ const paymentService = {
       phone: customer.phone,
       address: customer.address || "",
       city: customer.city || "",
-      country: customer.country || "Sri Lanka"
+      country: customer.country || "Sri Lanka",
+      ...customFields
     };
 
     return {

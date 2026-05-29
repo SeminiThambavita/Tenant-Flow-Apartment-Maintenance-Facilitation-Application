@@ -12,6 +12,7 @@ import StaffDashboard from './pages/StaffDashboard';
 import StaffAvailability from './pages/StaffAvailability';
 import StaffProfile from './pages/StaffProfile';
 import StaffTaskDetail from './pages/StaffTaskDetail';
+import StaffTenantPayments from './pages/StaffTenantPayments';
 import StaffCostReportPage from './pages/StaffCostReportPage';
 import InvoicesPage from './pages/InvoicesPage';
 import AdminDashboard from './pages/AdminDashboard';
@@ -21,10 +22,12 @@ import AdminCostReportDetail from './pages/AdminCostReportDetail';
 import AdminTaskAssignment from './pages/AdminTaskAssignment';
 import AdminProperties from './pages/AdminProperties';
 import AdminProfile from './pages/AdminProfile';
+import AdminTenantPayments from './pages/AdminTenantPayments';
 import StaffApprovalDetail from './pages/StaffApprovalDetail';
 import Payment from './pages/Payment';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancel from './pages/PaymentCancel';
+import PaymentReceiptPage from './pages/PaymentReceiptPage';
 import Footer from './components/Footer';
 import './App.css';
 
@@ -55,10 +58,12 @@ function AppContent() {
           <Route path="/payment" element={<Payment />} />
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/cancel" element={<PaymentCancel />} />
+          <Route path="/payment-history" element={<PaymentReceiptPage />} />
           <Route path="/report-issue" element={<ReportIssue />} />
           <Route path="/report-issue/review" element={<ReviewIssue />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/staff-dashboard" element={<StaffDashboard />} />
+          <Route path="/staff/tenant-payments" element={<StaffTenantPayments />} />
           <Route path="/staff/availability" element={<StaffAvailability />} />
           <Route path="/staff/profile" element={<StaffProfile />} />
           <Route path="/staff/tasks/:id" element={<StaffTaskDetail />} />
@@ -67,6 +72,7 @@ function AppContent() {
           <Route path="/admin/staff-approval/:id" element={<StaffApprovalDetail />} />
           <Route path="/admin/in-progress-repairs" element={<AdminInProgressRepairs />} />
           <Route path="/admin/in-progress-repairs/:id" element={<AdminRepairDetail />} />
+          <Route path="/admin/tenant-payments" element={<AdminTenantPayments />} />
           <Route path="/admin/cost-reports/:id" element={<AdminCostReportDetail />} />
           <Route path="/admin/staff-assignments" element={<AdminTaskAssignment />} />
           <Route path="/admin/properties" element={<AdminProperties />} />

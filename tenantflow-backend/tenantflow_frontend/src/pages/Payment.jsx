@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { authAPI, paymentAPI } from '../api';
+import { authAPI, invoiceAPI, paymentAPI } from '../api';
 import Logo from '../components/Logo';
 
 const tipOptions = [10, 15, 20];
@@ -8,6 +8,9 @@ const tipOptions = [10, 15, 20];
 export default function Payment() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [invoice, setInvoice] = useState(null);
+  const [invoiceLoading, setInvoiceLoading] = useState(true);
+  const [invoiceError, setInvoiceError] = useState('');
   const [tipPercent, setTipPercent] = useState(10);
   const [customTip, setCustomTip] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -38,22 +41,92 @@ export default function Payment() {
     };
   }, []);
 
-  const fallbackInvoice = {
-    invoiceNumber: '#TF-00124',
-    issueTitle: 'Leaky Faucet - Kitchen',
-    issuedAt: '2023-10-26',
-    laborCharge: 30.0,
-    partsCharge: 15.0
-  };
+  useEffect(() => {
+    let isMounted = true;
 
-  const invoice = location.state?.invoice || fallbackInvoice;
-  const payhereItems = invoice.issueTitle
+    const loadInvoice = async () => {
+      const stateInvoice = location.state?.invoice;
+      if (stateInvoice?._id) {
+        if (isMounted) {
+          setInvoice(stateInvoice);
+          setInvoiceError('');
+          setInvoiceLoading(false);
+        }
+        return;
+      }
+
+      const pendingInvoiceId = localStorage.getItem('pendingInvoiceId');
+      if (!pendingInvoiceId) {
+        if (isMounted) {
+          setInvoice(null);
+          setInvoiceError('');
+          setInvoiceLoading(false);
+        }
+        return;
+      }
+
+      if (isMounted) {
+        setInvoiceLoading(true);
+      }
+
+      try {
+        const response = await invoiceAPI.getById(pendingInvoiceId);
+        if (isMounted) {
+          setInvoice(response?.data?.invoice || null);
+          setInvoiceError('');
+        }
+      } catch (err) {
+        if (isMounted) {
+          setInvoice(null);
+          setInvoiceError(err?.response?.data?.message || 'Failed to load invoice details.');
+        }
+      } finally {
+        if (isMounted) {
+          setInvoiceLoading(false);
+        }
+      }
+    };
+
+    loadInvoice();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [location.state]);
+
+  const invoiceBreakdown = useMemo(() => {
+    if (!invoice) {
+      return [];
+    }
+
+    const costBreakdown = invoice.costBreakdown || {};
+    const partsCharge = Number(
+      invoice.partsCharge ??
+        (costBreakdown.materialsCost || 0) +
+          (costBreakdown.transportCost || 0) +
+          (costBreakdown.otherCost || 0)
+    );
+    const entries = [
+      { label: 'Labor Charges', amount: Number(invoice.laborCharge ?? costBreakdown.laborCost ?? 0) },
+      { label: 'Parts / Materials', amount: partsCharge }
+    ].filter((entry) => Number(entry.amount || 0) > 0);
+
+    if (entries.length > 0) {
+      return entries;
+    }
+
+    return [{ label: 'Invoice Total', amount: Number(invoice.total ?? 0) }];
+  }, [invoice]);
+
+  const serviceAmount = Number(
+    invoice?.total ?? invoiceBreakdown.reduce((sum, entry) => sum + Number(entry.amount || 0), 0)
+  );
+
+  const payhereItems = invoice?.issueTitle
     ? `${invoice.issueTitle}${invoice.invoiceNumber ? ` (${invoice.invoiceNumber})` : ''}`
     : 'Maintenance Payment';
 
-  const laborCharge = invoice.laborCharge ?? 30.0;
-  const partsCharge = invoice.partsCharge ?? 15.0;
-  const subtotal = laborCharge + partsCharge;
+  const subtotal = serviceAmount;
 
   const tipAmount = useMemo(() => {
     if (tipPercent === 'custom') {
@@ -85,14 +158,17 @@ export default function Payment() {
   const handlePayNow = async () => {
     setError('');
 
+    if (!invoice?._id) {
+      setError('Select an invoice before paying.');
+      return;
+    }
+
     if (!termsAccepted) {
       setError('Please agree to the terms before paying.');
       return;
     }
 
-    if (invoice?._id) {
-      localStorage.setItem('pendingInvoiceId', invoice._id);
-    }
+    localStorage.setItem('pendingInvoiceId', invoice._id);
 
     const invoiceLabel = invoice?.issueTitle
       ? `${invoice.issueTitle}${invoice.invoiceNumber ? ` (${invoice.invoiceNumber})` : ''}`
@@ -105,7 +181,7 @@ export default function Payment() {
       const response = await paymentAPI.initiate({
         amount: totalDue,
         items: payhereItems,
-        invoiceId: invoice?._id
+        invoiceId: invoice._id
       });
 
       const payhere = response?.data?.payhere;
@@ -121,6 +197,50 @@ export default function Payment() {
       setIsSubmitting(false);
     }
   };
+
+  if (invoiceLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-blue-50 font-['DM_Sans'] flex items-center justify-center px-6">
+        <div className="rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm text-sm text-slate-600">
+          Loading invoice details...
+        </div>
+      </div>
+    );
+  }
+
+  if (!invoice) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-blue-50 font-['DM_Sans']">
+        <div className="absolute -top-24 left-10 h-64 w-64 rounded-full bg-blue-200/40 blur-3xl" />
+        <div className="absolute top-32 right-10 h-72 w-72 rounded-full bg-indigo-200/30 blur-3xl" />
+
+        <div className="relative max-w-3xl mx-auto px-6 py-16">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center">
+            <Logo size={24} textClassName="text-xs font-semibold text-slate-600" />
+            <h1 className="mt-4 text-2xl font-['Space_Grotesk'] font-semibold text-slate-900">No invoice selected</h1>
+            <p className="mt-2 text-sm text-slate-500">Open an invoice from the invoices page or the dashboard quick actions to continue with PayHere sandbox.</p>
+            {invoiceError && <p className="mt-3 text-sm text-red-600">{invoiceError}</p>}
+            <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                type="button"
+                onClick={() => navigate('/invoices')}
+                className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-3 transition"
+              >
+                Go to Invoices
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/tenant-dashboard')}
+                className="rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-semibold px-5 py-3 transition hover:bg-slate-50"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-blue-50 font-['DM_Sans']">
@@ -175,14 +295,12 @@ export default function Payment() {
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
               <h2 className="text-sm font-['Space_Grotesk'] font-semibold text-slate-900">Cost Breakdown</h2>
               <div className="mt-4 space-y-3 text-sm">
-                <div className="flex justify-between text-slate-600">
-                  <span>Labor Charges</span>
-                  <span>LKR {laborCharge.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-slate-600">
-                  <span>Parts Replacement (Faucet Valve)</span>
-                  <span>LKR {partsCharge.toFixed(2)}</span>
-                </div>
+                {invoiceBreakdown.map((entry) => (
+                  <div key={entry.label} className="flex justify-between text-slate-600">
+                    <span>{entry.label}</span>
+                    <span>LKR {Number(entry.amount || 0).toFixed(2)}</span>
+                  </div>
+                ))}
                 <div className="border-t border-dashed border-slate-200 pt-3 flex justify-between font-semibold text-slate-900">
                   <span>Subtotal</span>
                   <span>LKR {subtotal.toFixed(2)}</span>

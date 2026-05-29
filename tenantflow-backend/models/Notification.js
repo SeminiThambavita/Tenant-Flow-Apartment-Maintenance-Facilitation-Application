@@ -16,7 +16,8 @@ const notificationSchema = new mongoose.Schema({
       "task_assigned",            // When task is assigned to staff
       "task_status_changed",      // When task status changes
       "assignment_notification",  // General assignment info
-      "invoice_sent"              // When invoice is sent to tenant
+      "invoice_sent",             // When invoice is sent to tenant
+      "payment_received"          // When payment is received
     ],
     required: true
   },

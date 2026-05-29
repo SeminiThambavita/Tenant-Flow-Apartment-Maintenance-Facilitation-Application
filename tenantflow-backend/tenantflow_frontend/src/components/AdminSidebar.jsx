@@ -7,6 +7,7 @@ const navItems = [
   { key: 'properties', label: 'Properties', path: '/admin/properties', icon: '▣' },
   { key: 'staff', label: 'Task Assignment', path: '/admin/staff-assignments', icon: '⌂' },
   { key: 'repairs', label: 'Tasks List', path: '/admin/in-progress-repairs', icon: '⚒' },
+  { key: 'tenant-payments', label: 'Tenant Payments', path: '/admin/tenant-payments', icon: '₨' },
   { key: 'cost-reports', label: 'Cost Report Approvals', path: '/admin-dashboard#cost-report-approvals', icon: '✓' },
   { key: 'staff-approvals', label: 'Staff Approvals', path: '/admin-dashboard#staff-approvals', icon: '👥' },
   { key: 'profile', label: 'Profile', path: '/admin/profile', icon: '⚙' },

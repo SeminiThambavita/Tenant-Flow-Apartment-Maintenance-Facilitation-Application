@@ -15,7 +15,7 @@ const STATUS_FILTERS = [
   'cost report rejected',
   'invoice issued',
   'done and payment pending',
-  'payment successful',
+  'payment done',
   'task done',
 ];
 

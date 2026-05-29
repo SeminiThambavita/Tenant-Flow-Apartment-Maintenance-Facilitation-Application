@@ -61,6 +61,70 @@ export const notifyInvoiceSent = async (invoiceId, senderId) => {
 };
 
 /**
+ * Notify manager and assigned staff when a tenant payment is received
+ */
+export const notifyPaymentReceived = async (invoiceId, payment) => {
+  try {
+    const invoice = await Invoice.findById(invoiceId)
+      .populate("tenant", "name email")
+      .populate({
+        path: "issue",
+        select: "issueType building floor unit unitNumber specificSpot assignedTo propertyManager",
+        populate: [
+          { path: "assignedTo", select: "name email staffType" },
+          { path: "propertyManager", select: "name email" },
+          { path: "building", select: "name" }
+        ]
+      })
+      .exec();
+
+    if (!invoice || !invoice.issue) {
+      return;
+    }
+
+    const issue = invoice.issue;
+    const buildingName = issue.building?.name || invoice.location?.building?.name || "Building";
+    const unitNumber = invoice.location?.unitNumber || issue.unitNumber || issue.unit || "—";
+    const taskId = issue._id?.toString?.() || issue._id || invoice.taskId || invoice.issue?.toString?.();
+    const taskName = invoice.taskName || `${issue.issueType || "Maintenance"}${issue.specificSpot ? ` - ${issue.specificSpot}` : ""}`;
+    const payload = {
+      type: "payment_received",
+      issue: issue._id,
+      title: "Payment Received",
+      message: `Payment received for invoice ${invoice.invoiceNumber} linked to ${taskName}.`,
+      actionUrl: `/admin/in-progress-repairs/${issue._id}`,
+      data: {
+        invoiceId: invoice._id?.toString?.() || invoice._id,
+        invoiceNumber: invoice.invoiceNumber,
+        taskId,
+        taskName,
+        paymentId: payment?._id?.toString?.() || payment?._id,
+        paymentOrderId: payment?.orderId,
+        paymentReference: payment?.payherePaymentId || payment?.orderId,
+        amount: payment?.amount ?? invoice.total,
+        paymentMethod: payment?.paymentMethod || 'payhere',
+        tenantName: invoice.tenant?.name,
+        issueType: issue.issueType,
+        unitNumber,
+        building: buildingName,
+        newStatus: 'payment done'
+      }
+    };
+
+    if (issue.assignedTo?._id) {
+      await createNotification(issue.assignedTo._id, payload);
+    }
+
+    const managerId = issue.propertyManager?._id || issue.propertyManager || invoice.propertyManager?._id || invoice.propertyManager;
+    if (managerId) {
+      await createNotification(managerId, payload);
+    }
+  } catch (error) {
+    console.error("Error notifying payment received:", error);
+  }
+};
+
+/**
  * Notify all relevant parties when an issue is reported
  */
 export const notifyIssueReported = async (issue, propertyManagerId) => {

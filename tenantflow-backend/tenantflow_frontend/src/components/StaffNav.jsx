@@ -5,6 +5,7 @@ import NotificationBell from './NotificationBell';
 
 const NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard', path: '/staff-dashboard' },
+  { key: 'tenant-payments', label: 'Tenant Payments', path: '/staff/tenant-payments' },
   { key: 'availability', label: 'Availability', path: '/staff/availability' },
   { key: 'profile', label: 'Profile', path: '/staff/profile' },
 ];

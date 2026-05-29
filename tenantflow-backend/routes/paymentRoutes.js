@@ -4,6 +4,8 @@ import {
 	initiatePayment,
 	verifyPayment,
 	getPayments,
+	getTenantPayments,
+	getStaffPayments,
 	handlePaymentNotify,
 	deletePayment
 } from "../controllers/paymentController.js";
@@ -16,6 +18,8 @@ router.post("/notify", handlePaymentNotify);
 // Protected routes
 router.post("/initiate", authMiddleware, initiatePayment);
 router.get("/", authMiddleware, getPayments);
+router.get("/tenant-payments", authMiddleware, getTenantPayments);
+router.get("/staff-payments", authMiddleware, getStaffPayments);
 router.get("/:orderId", authMiddleware, verifyPayment);
 router.delete("/:id", authMiddleware, deletePayment);
 

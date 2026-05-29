@@ -6,6 +6,28 @@ const api = axios.create({
   baseURL: API_BASE_URL,
 });
 
+const ISSUE_UPDATED_EVENT = 'tenantflow:issue-updated';
+
+const broadcastIssueUpdate = (issueId, status) => {
+  if (typeof window === 'undefined') return;
+
+  const payload = JSON.stringify({
+    issueId,
+    status,
+    at: Date.now()
+  });
+
+  window.dispatchEvent(new CustomEvent(ISSUE_UPDATED_EVENT, {
+    detail: { issueId, status }
+  }));
+
+  try {
+    localStorage.setItem(ISSUE_UPDATED_EVENT, payload);
+  } catch {
+    // ignore storage failures
+  }
+};
+
 // Add token to headers
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
@@ -33,7 +55,11 @@ export const issueAPI = {
   getAll: (params) => api.get('/issues', { params }),
   getById: (id) => api.get(`/issues/${id}`),
   create: (data) => api.post('/issues', data),
-  update: (id, data) => api.put(`/issues/${id}`, data),
+  update: async (id, data) => {
+    const response = await api.put(`/issues/${id}`, data);
+    broadcastIssueUpdate(id, data?.status);
+    return response;
+  },
   delete: (id) => api.delete(`/issues/${id}`),
 };
 
@@ -57,6 +83,8 @@ export const invoiceAPI = {
 export const paymentAPI = {
   initiate: (data) => api.post('/payments/initiate', data),
   getAll: () => api.get('/payments'),
+  getTenantPayments: () => api.get('/payments/tenant-payments'),
+  getStaffPayments: () => api.get('/payments/staff-payments'),
   getByOrderId: (orderId) => api.get(`/payments/${orderId}`),
   deleteById: (id) => api.delete(`/payments/${id}`),
 };

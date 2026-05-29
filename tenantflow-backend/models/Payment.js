@@ -7,6 +7,27 @@ const paymentSchema = new mongoose.Schema(
       ref: "User",
       required: true
     },
+    invoiceNumber: {
+      type: String
+    },
+    taskId: {
+      type: String
+    },
+    taskName: {
+      type: String
+    },
+    tenantName: {
+      type: String
+    },
+    tenantEmail: {
+      type: String
+    },
+    tenantPhone: {
+      type: String
+    },
+    tenantUnit: {
+      type: String
+    },
     invoice: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Invoice"
@@ -41,6 +62,10 @@ const paymentSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String
+    },
+    checkoutSnapshot: {
+      type: Object,
+      default: {}
     },
     rawNotify: {
       type: Object

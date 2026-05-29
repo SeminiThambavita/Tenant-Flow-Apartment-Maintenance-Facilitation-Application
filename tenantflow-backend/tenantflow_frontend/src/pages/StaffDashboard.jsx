@@ -4,13 +4,26 @@ import { authAPI, issueAPI } from '../api';
 import StaffNav from '../components/StaffNav';
 import ProfileDropdown from '../components/ProfileDropdown';
 import usePolling from '../hooks/usePolling';
-import { formatStatusLabel, getStatusBadgeTheme, isOpenStatus } from '../utils/issueStatus';
+import { formatStatusLabel, getStatusBadgeTheme, isOpenStatus, normalizeStatus } from '../utils/issueStatus';
+
+const STATUS_FILTERS = [
+  { value: 'all', label: 'All' },
+  { value: 'new', label: 'New' },
+  { value: 'assigned', label: 'Assigned' },
+  { value: 'in progress', label: 'In Progress' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'cost report submitted', label: 'Cost Report Submitted' },
+  { value: 'invoice issued', label: 'Invoice Issued' },
+  { value: 'payment done', label: 'Payment Done' },
+  { value: 'task done', label: 'Task Done' },
+];
 
 export default function StaffDashboard() {
   const navigate = useNavigate();
   const role = localStorage.getItem('role');
   const [profile, setProfile] = useState({ name: 'Staff Member', workStatus: 'on-call' });
   const [tasks, setTasks] = useState([]);
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const getBuildingLabel = (value) => {
     if (!value) return 'Building';
@@ -59,6 +72,10 @@ export default function StaffDashboard() {
 
   const openTasks = tasks.filter((task) => isOpenStatus(task.status));
   const todaysTaskCount = openTasks.length;
+  const filteredTasks = useMemo(() => {
+    if (statusFilter === 'all') return tasks;
+    return tasks.filter((task) => normalizeStatus(task.status) === statusFilter);
+  }, [statusFilter, tasks]);
 
   const formatIssueTitle = (task) => {
     const issueType = String(task.issueType || 'maintenance').toLowerCase();
@@ -117,21 +134,40 @@ export default function StaffDashboard() {
           </div>
         </div>
 
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-bold tracking-wider text-gray-600 uppercase">My Assigned Tasks</p>
             <p className="text-sm text-gray-500 mt-1">Updates every 5 seconds</p>
           </div>
+          <div className="flex flex-wrap gap-2">
+            {STATUS_FILTERS.map((item) => {
+              const isActive = statusFilter === item.value;
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setStatusFilter(item.value)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
+                    isActive
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400 hover:text-blue-600'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="space-y-3">
-          {tasks.length === 0 ? (
+          {filteredTasks.length === 0 ? (
             <div className="rounded-xl border-2 border-dashed border-gray-300 bg-white px-6 py-12 text-center">
               <p className="text-lg text-gray-600 font-medium">No assigned tasks yet</p>
-              <p className="text-sm text-gray-400 mt-2">Check back soon for new maintenance requests</p>
+              <p className="text-sm text-gray-400 mt-2">Try a different status filter or check back soon for new maintenance requests</p>
             </div>
           ) : (
-            tasks.map((task) => {
+            filteredTasks.map((task) => {
               const badge = getStatusBadge(task.status);
               return (
                 <button
