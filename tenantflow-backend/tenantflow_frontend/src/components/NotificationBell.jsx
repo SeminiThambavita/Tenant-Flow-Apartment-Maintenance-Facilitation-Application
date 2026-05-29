@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../hooks/useNotifications';
 
 export default function NotificationBell() {
   const { notifications, unreadCount, markAsRead, deleteNotification, clearAllNotifications } = useNotifications();
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -57,6 +59,15 @@ export default function NotificationBell() {
     if (diffDays < 7) return `${diffDays}d ago`;
     
     return notifDate.toLocaleDateString();
+  };
+
+  const handleNotificationClick = async (notification) => {
+    await markAsRead(notification._id);
+    setShowDropdown(false);
+
+    if (notification.actionUrl) {
+      navigate(notification.actionUrl);
+    }
   };
 
   return (
@@ -113,9 +124,18 @@ export default function NotificationBell() {
               notifications.map((notification) => (
                 <div
                   key={notification._id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleNotificationClick(notification)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      handleNotificationClick(notification);
+                    }
+                  }}
                   className={`p-4 border-b border-gray-100 hover:bg-gray-50 transition ${
                     !notification.isRead ? 'bg-blue-50' : ''
-                  } ${getNotificationColor(notification.type)}`}
+                  } ${getNotificationColor(notification.type)} cursor-pointer`}
                 >
                   <div className="flex justify-between items-start gap-3">
                     <div className="flex-1">
@@ -148,7 +168,7 @@ export default function NotificationBell() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-2">
+                    <div className="flex gap-2" onClick={(event) => event.stopPropagation()}>
                       {!notification.isRead && (
                         <button
                           onClick={() => markAsRead(notification._id)}

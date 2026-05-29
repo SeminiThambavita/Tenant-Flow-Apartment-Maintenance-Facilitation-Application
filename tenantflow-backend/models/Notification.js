@@ -46,7 +46,9 @@ const notificationSchema = new mongoose.Schema({
     tenantName: String,
     issueType: String,
     unitNumber: String,
-    building: String
+    building: String,
+    invoiceId: String,
+    invoiceNumber: String
   },
 
   // Read/unread status

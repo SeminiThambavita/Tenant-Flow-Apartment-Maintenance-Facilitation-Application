@@ -29,6 +29,7 @@ export const createInvoice = async (req, res) => {
       issue: issueId,
       invoiceNumber: buildInvoiceNumber(),
       issueTitle,
+      status: "submitted",
       laborCharge: Number(laborCharge),
       partsCharge: Number(partsCharge),
       total,

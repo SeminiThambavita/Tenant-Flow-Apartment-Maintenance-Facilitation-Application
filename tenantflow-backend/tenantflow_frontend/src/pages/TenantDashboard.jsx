@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
 import { authAPI, invoiceAPI, issueAPI, paymentAPI } from '../api';
 import Logo from '../components/Logo';
@@ -10,6 +10,7 @@ import { addNotification, getNotifications, markNotificationRead } from '../util
 
 export default function TenantDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const role = localStorage.getItem('role');
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [userName, setUserName] = useState('Tenant');
@@ -50,6 +51,20 @@ export default function TenantDashboard() {
       navigate('/login');
     }
   }, [role, navigate]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const menu = params.get('menu');
+    const invoiceId = params.get('invoiceId');
+
+    if (menu) {
+      setActiveMenu(menu);
+    }
+
+    if (invoiceId) {
+      setPendingInvoiceToOpen(invoiceId);
+    }
+  }, [location.search]);
 
   useEffect(() => {
     setNotifications(getNotifications());
@@ -367,6 +382,8 @@ export default function TenantDashboard() {
 
   const getInvoiceBadge = (status) => {
     switch (String(status || '').toLowerCase()) {
+      case 'submitted':
+        return 'bg-sky-100 text-sky-800 border border-sky-200';
       case 'pending':
         return 'bg-yellow-100 text-yellow-800 border border-yellow-300';
       case 'paid':
@@ -379,6 +396,9 @@ export default function TenantDashboard() {
   };
 
   const formatInvoiceStatus = (status) => {
+    if (String(status || '').toLowerCase() === 'submitted') {
+      return 'Invoice Submitted';
+    }
     if (String(status || '').toLowerCase() === 'paid') {
       return 'Payment Successful';
     }

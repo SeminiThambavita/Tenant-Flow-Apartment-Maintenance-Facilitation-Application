@@ -76,9 +76,9 @@ export const costReportAPI = {
   getByIssue: (issueId) => api.get(`/cost-reports/issue/${issueId}`),
   getPendingForManager: () => api.get('/cost-reports/manager/pending'),
   update: (id, data) => api.put(`/cost-reports/${id}`, data),
-  submit: (id) => api.put(`/cost-reports/${id}/submit`),
-  approve: (id, data) => api.put(`/cost-reports/${id}/approve`, data),
-  reject: (id, data) => api.put(`/cost-reports/${id}/reject`, data),
+  submit: (id) => api.post(`/cost-reports/${id}/submit`),
+  approve: (id, data) => api.post(`/cost-reports/${id}/approve`, data),
+  reject: (id, data) => api.post(`/cost-reports/${id}/reject`, data),
   delete: (id) => api.delete(`/cost-reports/${id}`),
 };
 

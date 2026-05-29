@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { issueAPI, costReportAPI } from '../api';
+import { issueAPI } from '../api';
 import StaffNav from '../components/StaffNav';
 import IssueMediaGallery from '../components/IssueMediaGallery';
-import CostReportForm from '../components/CostReportForm';
 import usePolling from '../hooks/usePolling';
 import { formatStatusLabel, getStatusBadgeTheme, normalizeStatus } from '../utils/issueStatus';
 
@@ -50,26 +49,12 @@ export default function StaffTaskDetail() {
   const [error, setError] = useState('');
   const [updating, setUpdating] = useState(false);
   const [profileName, setProfileName] = useState('Staff Member');
-  const [showCostReportForm, setShowCostReportForm] = useState(false);
-  const [costReport, setCostReport] = useState(null);
-  const [loadingCostReport, setLoadingCostReport] = useState(false);
 
   const loadIssue = useCallback(async () => {
     if (!id || role !== 'staff') return;
     try {
       const response = await issueAPI.getById(id);
       setIssue(response?.data?.issue || null);
-      
-      // Load cost report if it exists
-      if (response?.data?.issue?.currentCostReport) {
-        try {
-          const costReportResp = await costReportAPI.getById(response.data.issue.currentCostReport);
-          setCostReport(costReportResp?.data?.costReport || null);
-        } catch (err) {
-          console.error('Error loading cost report:', err);
-        }
-      }
-      
       setError('');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load task details.');
@@ -111,35 +96,8 @@ export default function StaffTaskDetail() {
   };
 
   const handleCostReportFormSuccess = async () => {
-    // Reload issue to get updated cost report
     await loadIssue();
-    setShowCostReportForm(false);
-    alert('Cost report saved. You can now submit it for approval.');
   };
-
-  const handleSubmitCostReport = async () => {
-    if (!costReport?._id) {
-      setError('No cost report found');
-      return;
-    }
-
-    setUpdating(true);
-    setError('');
-    try {
-      await costReportAPI.submit(costReport._id);
-      // Reload to get updated status
-      await loadIssue();
-      alert('Cost report submitted for approval!');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to submit cost report.');
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const statusKey = normalizeStatus(issue?.status);
-  const canStart = statusKey === 'new' || statusKey === 'assigned';
-  const canComplete = statusKey === 'in progress';
 
   return (
     <div className="min-h-screen bg-[#F4F5F9] text-[#171A2A]">
@@ -251,41 +209,21 @@ export default function StaffTaskDetail() {
               {normalizeStatus(issue.status) === 'completed' && (
                 <button
                   type="button"
-                  onClick={() => setShowCostReportForm(true)}
+                  onClick={() => navigate(`/staff/tasks/${id}/cost-report`)}
                   className="px-5 py-2.5 rounded-lg bg-[#F59E0B] text-white text-sm font-semibold hover:bg-[#D97706] transition"
                 >
-                  {costReport ? 'Edit Cost Report' : 'Create Cost Report'}
+                  Create Cost Report
                 </button>
               )}
 
-              {costReport && normalizeStatus(costReport.status) === 'draft' && (
+              {normalizeStatus(issue.status) === 'cost report rejected' && (
                 <button
                   type="button"
-                  disabled={updating}
-                  onClick={handleSubmitCostReport}
-                  className="px-5 py-2.5 rounded-lg bg-[#10B981] text-white text-sm font-semibold disabled:opacity-70 hover:bg-[#059669] transition"
+                  onClick={() => navigate(`/staff/tasks/${id}/cost-report`)}
+                  className="px-5 py-2.5 rounded-lg bg-[#DC2626] text-white text-sm font-semibold hover:bg-[#B91C1C] transition"
                 >
-                  {updating ? 'Submitting...' : 'Submit Cost Report'}
+                  Review Rejected Cost Report
                 </button>
-              )}
-
-              {costReport && normalizeStatus(costReport.status) === 'rejected' && (
-                <div className="text-sm">
-                  <p className="text-red-600 font-medium mb-2">Cost Report Rejected</p>
-                  <p className="text-gray-600">Remarks: {costReport.rejectionRemarks}</p>
-                </div>
-              )}
-
-              {costReport && normalizeStatus(costReport.status) === 'submitted' && (
-                <div className="px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-yellow-800 text-sm font-medium">Cost report submitted for approval</p>
-                </div>
-              )}
-
-              {costReport && normalizeStatus(costReport.status) === 'approved' && (
-                <div className="px-4 py-2 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-green-800 text-sm font-medium">Cost report approved ✓</p>
-                </div>
               )}
 
               <button
@@ -300,19 +238,6 @@ export default function StaffTaskDetail() {
         ) : null}
       </main>
 
-      {/* Cost Report Form Modal */}
-      {showCostReportForm && issue && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <CostReportForm
-              issue={issue}
-              costReportId={costReport?._id}
-              onSubmitSuccess={handleCostReportFormSuccess}
-              onCancel={() => setShowCostReportForm(false)}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

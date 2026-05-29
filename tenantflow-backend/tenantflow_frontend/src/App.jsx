@@ -12,9 +12,11 @@ import StaffDashboard from './pages/StaffDashboard';
 import StaffAvailability from './pages/StaffAvailability';
 import StaffProfile from './pages/StaffProfile';
 import StaffTaskDetail from './pages/StaffTaskDetail';
+import StaffCostReportPage from './pages/StaffCostReportPage';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminInProgressRepairs from './pages/AdminInProgressRepairs';
 import AdminRepairDetail from './pages/AdminRepairDetail';
+import AdminCostReportDetail from './pages/AdminCostReportDetail';
 import AdminTaskAssignment from './pages/AdminTaskAssignment';
 import AdminProperties from './pages/AdminProperties';
 import AdminProfile from './pages/AdminProfile';
@@ -58,10 +60,12 @@ function AppContent() {
           <Route path="/staff/availability" element={<StaffAvailability />} />
           <Route path="/staff/profile" element={<StaffProfile />} />
           <Route path="/staff/tasks/:id" element={<StaffTaskDetail />} />
+          <Route path="/staff/tasks/:id/cost-report" element={<StaffCostReportPage />} />
           <Route path="/admin-dashboard" element={<AdminDashboard />} />
           <Route path="/admin/staff-approval/:id" element={<StaffApprovalDetail />} />
           <Route path="/admin/in-progress-repairs" element={<AdminInProgressRepairs />} />
           <Route path="/admin/in-progress-repairs/:id" element={<AdminRepairDetail />} />
+          <Route path="/admin/cost-reports/:id" element={<AdminCostReportDetail />} />
           <Route path="/admin/staff-assignments" element={<AdminTaskAssignment />} />
           <Route path="/admin/properties" element={<AdminProperties />} />
           <Route path="/admin/profile" element={<AdminProfile />} />

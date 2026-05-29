@@ -212,6 +212,10 @@ export const getIssues = async (req, res) => {
     const issues = await Issue.find(query)
       .populate("tenant", "name email apartmentNumber")
       .populate("assignedTo", "name staffType")
+      .populate({
+        path: "currentCostReport",
+        select: "status totalCost notes costItems revisionNumber createdAt updatedAt"
+      })
       .populate("building", "name address city")
       .sort({ createdAt: -1 });
 

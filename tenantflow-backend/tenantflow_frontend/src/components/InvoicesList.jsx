@@ -46,6 +46,8 @@ export default function InvoicesList() {
 
   const getStatusBadge = (status) => {
     switch (status) {
+      case 'submitted':
+        return 'bg-sky-100 text-sky-800';
       case 'pending':
         return 'bg-yellow-100 text-yellow-800';
       case 'paid':
@@ -55,6 +57,12 @@ export default function InvoicesList() {
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const formatStatus = (status) => {
+    if (String(status || '').toLowerCase() === 'submitted') return 'Invoice Submitted';
+    if (String(status || '').toLowerCase() === 'paid') return 'Payment Successful';
+    return String(status || '').charAt(0).toUpperCase() + String(status || '').slice(1);
   };
 
   if (loading) {
@@ -98,7 +106,7 @@ export default function InvoicesList() {
                     <p className="text-sm text-gray-600 mt-1">{invoice.issueTitle}</p>
                   </div>
                   <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(invoice.status)}`}>
-                    {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                    {formatStatus(invoice.status)}
                   </span>
                 </div>
 
@@ -167,7 +175,7 @@ export default function InvoicesList() {
 
                 {/* Payment Section */}
                 <div className="flex gap-3 pt-4 border-t border-gray-200">
-                  {invoice.status === 'pending' && (
+                  {(invoice.status === 'submitted' || invoice.status === 'pending') && (
                     <button
                       onClick={() => handlePayNow(invoice)}
                       className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition"

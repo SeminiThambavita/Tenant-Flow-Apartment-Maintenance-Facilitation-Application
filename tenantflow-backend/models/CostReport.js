@@ -35,6 +35,14 @@ const costReportSchema = new mongoose.Schema({
       type: Number,
       default: 1
     },
+    hours: {
+      type: Number,
+      default: 0
+    },
+    rate: {
+      type: Number,
+      default: 0
+    },
     unitCost: {
       type: Number,
       required: true
@@ -125,6 +133,36 @@ const costReportSchema = new mongoose.Schema({
     type: Number,
     default: 1
   },
+
+  // Audit trail for all cost report actions
+  auditTrail: [{
+    event: {
+      type: String,
+      enum: ["created", "updated", "submitted", "resubmitted", "approved", "rejected"],
+      required: true
+    },
+    taskId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Issue",
+      required: true
+    },
+    changedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true
+    },
+    changedAt: {
+      type: Date,
+      default: Date.now
+    },
+    previousStatus: String,
+    newStatus: String,
+    remarks: String,
+    summary: String,
+    revisionNumber: Number,
+    totalCost: Number,
+    costItemCount: Number
+  }],
 
   // Previous versions (for audit trail)
   previousVersions: [{

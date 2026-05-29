@@ -91,6 +91,8 @@ export default function StaffDashboard() {
     return { icon: '📋', bg: 'bg-[#EEE8FF]' };
   };
 
+  const formatMoney = (value) => `LKR ${Number(value || 0).toFixed(2)}`;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <StaffNav active="dashboard" profileName={profile.name} />
@@ -145,7 +147,7 @@ export default function StaffDashboard() {
                     <div className="min-w-0 flex-1">
                       <p className="text-base font-bold text-gray-900 group-hover:text-blue-600 transition truncate">{formatIssueTitle(task)}</p>
                       <p className="text-sm text-gray-600 mt-1 truncate">{formatIssueSubtitle(task)}</p>
-                      <div className="flex gap-2 mt-2">
+                      <div className="flex gap-2 mt-2 flex-wrap">
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
                           {getBuildingLabel(task.building)}
                         </span>
@@ -159,6 +161,31 @@ export default function StaffDashboard() {
                           </span>
                         )}
                       </div>
+
+                      {task.currentCostReport && typeof task.currentCostReport === 'object' && (
+                        <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50/80 p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">Cost Report Template</p>
+                              <p className="text-sm font-semibold text-slate-900 mt-1">
+                                {task.currentCostReport.costItems?.length || 0} line item{(task.currentCostReport.costItems?.length || 0) === 1 ? '' : 's'} saved
+                              </p>
+                            </div>
+                            <span className="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-blue-700 border border-blue-100">
+                              {String(task.currentCostReport.status || 'draft')}
+                            </span>
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-700">
+                            <span className="rounded-full bg-white px-2.5 py-1 border border-blue-100">{formatMoney(task.currentCostReport.totalCost)}</span>
+                            <span className="rounded-full bg-white px-2.5 py-1 border border-blue-100">
+                              Updated {task.currentCostReport.updatedAt ? new Date(task.currentCostReport.updatedAt).toLocaleDateString() : 'today'}
+                            </span>
+                          </div>
+                          {task.currentCostReport.notes && (
+                            <p className="mt-2 text-xs text-slate-600 line-clamp-2">{task.currentCostReport.notes}</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="text-right pr-2 shrink-0 flex flex-col items-end gap-2">

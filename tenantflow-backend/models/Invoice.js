@@ -38,8 +38,8 @@ const invoiceSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "paid", "overdue", "cancelled"],
-      default: "pending"
+      enum: ["submitted", "pending", "paid", "overdue", "cancelled"],
+      default: "submitted"
     },
     
     // Cost breakdown from cost report

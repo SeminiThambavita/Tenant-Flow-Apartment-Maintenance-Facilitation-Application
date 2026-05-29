@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { authAPI, issueAPI } from '../api';
 import AdminSidebar from '../components/AdminSidebar';
 import ProfileDropdown from '../components/ProfileDropdown';
@@ -15,6 +15,7 @@ const getBuildingLabel = (value) => {
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const role = localStorage.getItem('role');
   const [profile, setProfile] = useState({ name: '', email: '', phone: '' });
   const [issues, setIssues] = useState([]);
@@ -135,9 +136,31 @@ export default function AdminDashboard() {
     return parts.slice(0, 2).map((item) => item[0]?.toUpperCase()).join('');
   };
 
+  useEffect(() => {
+    if (location.hash !== '#cost-report-approvals') return;
+    const element = document.getElementById('cost-report-approvals');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [location.hash]);
+
+  useEffect(() => {
+    if (location.hash !== '#staff-approvals') return;
+    const element = document.getElementById('staff-approvals');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [location.hash]);
+
+  const sidebarActive = location.hash === '#cost-report-approvals'
+    ? 'cost-reports'
+    : location.hash === '#staff-approvals'
+      ? 'staff-approvals'
+      : 'dashboard';
+
   return (
     <div className="min-h-screen bg-[#F3F4F8] text-[#1D1D2C] flex">
-      <AdminSidebar active="dashboard" profileName={profile.name} />
+      <AdminSidebar active={sidebarActive} profileName={profile.name} />
 
       <main className="flex-1 px-12 py-10">
         <div className="flex items-start justify-between mb-7">
@@ -234,11 +257,11 @@ export default function AdminDashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-          <div className="lg:col-span-2 bg-white rounded-lg border border-[#DDE2F0] overflow-hidden shadow-sm">
+          <div id="cost-report-approvals" className="lg:col-span-2 bg-white rounded-lg border border-[#DDE2F0] overflow-hidden shadow-sm">
             <CostReportsDashboard />
           </div>
 
-          <div className="bg-white rounded-lg border border-[#DDE2F0] p-4 shadow-sm">
+          <div id="staff-approvals" className="bg-white rounded-lg border border-[#DDE2F0] p-4 shadow-sm">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <span>👥</span> Staff Approvals ({pendingStaff.length})
             </h3>

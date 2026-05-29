@@ -7,6 +7,20 @@ import {
   createNotification
 } from "../services/notificationService.js";
 
+const getPopulatedId = (value) => value?._id?.toString?.() || value?.toString?.();
+
+const appendCostReportAuditEntry = (costReport, entry) => {
+  if (!costReport.auditTrail) {
+    costReport.auditTrail = [];
+  }
+
+  costReport.auditTrail.push({
+    taskId: costReport.issue,
+    changedAt: new Date(),
+    ...entry
+  });
+};
+
 // @desc    Create a new cost report (draft)
 // @route   POST /cost-reports
 // @access  Private (Staff)
@@ -46,7 +60,20 @@ export const createCostReport = async (req, res) => {
       createdBy: req.user._id,
       costItems: [],
       totalCost: 0,
-      status: "draft"
+      status: "draft",
+      auditTrail: [{
+        event: "created",
+        taskId: issueId,
+        changedBy: req.user._id,
+        summary: "Cost report created",
+        newStatus: "draft",
+        totalCost: 0,
+        costItemCount: 0
+      }]
+    });
+
+    await Issue.findByIdAndUpdate(issueId, {
+      currentCostReport: costReport._id
     });
 
     return res.status(201).json({
@@ -66,7 +93,16 @@ export const createCostReport = async (req, res) => {
 export const getCostReportById = async (req, res) => {
   try {
     const costReport = await CostReport.findById(req.params.id)
-      .populate("issue", "issueType building unitNumber")
+      .populate({
+        path: "issue",
+        select: "issueType building floor unit unitNumber specificSpot description status urgency priority tenant assignedTo propertyManager createdAt updatedAt media specialArrangements statusHistory resolvedAt invoice currentCostReport",
+        populate: [
+          { path: "building", select: "name address city" },
+          { path: "tenant", select: "name email phone" },
+          { path: "assignedTo", select: "name staffType phone" },
+          { path: "propertyManager", select: "name email" }
+        ]
+      })
       .populate("createdBy", "name email")
       .populate("approvedBy", "name email");
 
@@ -76,7 +112,7 @@ export const getCostReportById = async (req, res) => {
 
     // Check authorization
     const isStaff = costReport.createdBy._id.toString() === req.user._id.toString();
-    const isManager = costReport.issue.propertyManager?.toString() === req.user._id.toString();
+    const isManager = getPopulatedId(costReport.issue.propertyManager) === req.user._id.toString();
 
     if (req.user.role !== "admin" && !isStaff && !isManager) {
       return res.status(403).json({ message: "Not authorized to view this cost report" });
@@ -150,11 +186,17 @@ export const updateCostReport = async (req, res) => {
       };
 
       const validatedItems = costItems.map(item => {
-        const cost = (item.quantity || 1) * (item.unitCost || 0);
+          const normalizedCategory = item.category || "other";
+          const quantity = Number(item.quantity || 1);
+          const hours = Number(item.hours || 0);
+          const rate = Number(item.rate || item.unitCost || 0);
+          const unitCost = Number(item.unitCost || item.rate || 0);
+          const laborCost = normalizedCategory === "labor" ? (hours > 0 && rate > 0 ? hours * rate : quantity * rate) : quantity * unitCost;
+          const cost = Number(item.cost ?? laborCost);
         totalCost += cost;
 
         // Add to breakdown
-        const category = item.category || "other";
+          const category = normalizedCategory;
         if (breakdown[category + "Cost"] !== undefined) {
           breakdown[category + "Cost"] += cost;
         }
@@ -162,8 +204,10 @@ export const updateCostReport = async (req, res) => {
         return {
           itemName: item.itemName,
           description: item.description || "",
-          quantity: item.quantity || 1,
-          unitCost: item.unitCost || 0,
+            quantity,
+            hours,
+            rate,
+            unitCost,
           cost,
           category
         };
@@ -179,6 +223,23 @@ export const updateCostReport = async (req, res) => {
     }
 
     await costReport.save();
+
+    appendCostReportAuditEntry(costReport, {
+      event: "updated",
+      changedBy: req.user._id,
+      previousStatus: costReport.status,
+      newStatus: costReport.status,
+      summary: "Cost report updated",
+      totalCost: costReport.totalCost,
+      costItemCount: costReport.costItems?.length || 0,
+      revisionNumber: costReport.revisionNumber
+    });
+
+    await costReport.save();
+
+    await Issue.findByIdAndUpdate(costReport.issue, {
+      currentCostReport: costReport._id
+    });
 
     return res.json({
       message: "Cost report updated",
@@ -197,7 +258,7 @@ export const updateCostReport = async (req, res) => {
 export const submitCostReport = async (req, res) => {
   try {
     const costReport = await CostReport.findById(req.params.id)
-      .populate("issue")
+      .populate({ path: "issue", populate: [{ path: "building", select: "name address city" }, { path: "tenant", select: "name email phone" }, { path: "assignedTo", select: "name staffType phone" }, { path: "propertyManager", select: "name email" }] })
       .populate("createdBy", "name email");
 
     if (!costReport) {
@@ -219,8 +280,10 @@ export const submitCostReport = async (req, res) => {
       return res.status(400).json({ message: "Cost report must have at least one cost item" });
     }
 
+    const wasRejected = costReport.status === "rejected";
+
     // If previously rejected, increment revision number
-    if (costReport.status === "rejected") {
+    if (wasRejected) {
       // Store previous version
       if (!costReport.previousVersions) costReport.previousVersions = [];
       costReport.previousVersions.push({
@@ -241,10 +304,28 @@ export const submitCostReport = async (req, res) => {
     costReport.submittedAt = new Date();
     await costReport.save();
 
+    appendCostReportAuditEntry(costReport, {
+      event: wasRejected ? "resubmitted" : "submitted",
+      changedBy: req.user._id,
+      previousStatus: wasRejected ? "rejected" : "draft",
+      newStatus: "submitted",
+      summary: wasRejected ? "Cost report resubmitted after rejection" : "Cost report submitted for approval",
+      totalCost: costReport.totalCost,
+      costItemCount: costReport.costItems?.length || 0,
+      revisionNumber: costReport.revisionNumber
+    });
+
+    await costReport.save();
+
     // Update issue status
     const issue = await Issue.findByIdAndUpdate(
       costReport.issue._id,
-      { status: "cost report submitted" },
+      {
+        status: "cost report submitted",
+        currentCostReport: costReport._id,
+        costReportRequired: true,
+        costReportCreatedAt: costReport.submittedAt
+      },
       { new: true }
     ).populate("propertyManager", "name email");
 
@@ -280,7 +361,8 @@ export const submitCostReport = async (req, res) => {
 
     return res.json({
       message: "Cost report submitted for approval",
-      costReport
+      costReport,
+      issue
     });
 
   } catch (error) {
@@ -295,15 +377,16 @@ export const submitCostReport = async (req, res) => {
 export const approveCostReport = async (req, res) => {
   try {
     const costReport = await CostReport.findById(req.params.id)
-      .populate("issue")
+      .populate({ path: "issue", populate: [{ path: "building", select: "name address city" }, { path: "tenant", select: "name email phone" }, { path: "assignedTo", select: "name staffType phone" }, { path: "propertyManager", select: "name email" }] })
       .populate("createdBy", "name email");
 
     if (!costReport) {
       return res.status(404).json({ message: "Cost report not found" });
     }
 
-    // Check authorization - only property manager can approve
-    if (costReport.issue.propertyManager?.toString() !== req.user._id.toString()) {
+    // Check authorization - admins and the assigned property manager can approve
+    const propertyManagerId = getPopulatedId(costReport.issue.propertyManager);
+    if (req.user.role !== "admin" && propertyManagerId !== req.user._id.toString()) {
       return res.status(403).json({ message: "Not authorized to approve this cost report" });
     }
 
@@ -315,6 +398,16 @@ export const approveCostReport = async (req, res) => {
     costReport.status = "approved";
     costReport.approvedBy = req.user._id;
     costReport.approvedAt = new Date();
+    appendCostReportAuditEntry(costReport, {
+      event: "approved",
+      changedBy: req.user._id,
+      previousStatus: "submitted",
+      newStatus: "approved",
+      summary: "Cost report approved",
+      totalCost: costReport.totalCost,
+      costItemCount: costReport.costItems?.length || 0,
+      revisionNumber: costReport.revisionNumber
+    });
     await costReport.save();
 
     // Create invoice from cost report
@@ -327,6 +420,7 @@ export const approveCostReport = async (req, res) => {
       invoiceNumber,
       issueTitle: `${costReport.issue.issueType} - Cost Invoice`,
       issueType: costReport.issue.issueType,
+      status: "submitted",
       location: {
         building: costReport.issue.building,
         unitNumber: costReport.issue.unitNumber
@@ -386,13 +480,14 @@ export const approveCostReport = async (req, res) => {
       type: "task_status_changed",
       issue: costReport.issue._id,
       title: "Invoice Ready for Payment",
-      message: `Your invoice is ready. Total amount due: LKR ${costReport.totalCost.toFixed(2)}`,
+      message: `Your invoice has been submitted for payment. Total amount due: LKR ${costReport.totalCost.toFixed(2)}`,
       data: {
-        newStatus: "invoice issued",
+        newStatus: "invoice submitted",
         totalCost: costReport.totalCost,
+        invoiceId: invoice._id,
         invoiceNumber: invoice.invoiceNumber
       },
-      actionUrl: `/invoices/${invoice._id}`
+      actionUrl: `/tenant-dashboard?menu=invoices&invoiceId=${invoice._id}`
     });
 
     return res.json({
@@ -419,15 +514,16 @@ export const rejectCostReport = async (req, res) => {
     }
 
     const costReport = await CostReport.findById(req.params.id)
-      .populate("issue")
+      .populate({ path: "issue", populate: [{ path: "building", select: "name address city" }, { path: "tenant", select: "name email phone" }, { path: "assignedTo", select: "name staffType phone" }, { path: "propertyManager", select: "name email" }] })
       .populate("createdBy", "name email");
 
     if (!costReport) {
       return res.status(404).json({ message: "Cost report not found" });
     }
 
-    // Check authorization
-    if (costReport.issue.propertyManager?.toString() !== req.user._id.toString()) {
+    // Check authorization - admins and the assigned property manager can reject
+    const propertyManagerId = getPopulatedId(costReport.issue.propertyManager);
+    if (req.user.role !== "admin" && propertyManagerId !== req.user._id.toString()) {
       return res.status(403).json({ message: "Not authorized to reject this cost report" });
     }
 
@@ -439,6 +535,17 @@ export const rejectCostReport = async (req, res) => {
     costReport.status = "rejected";
     costReport.rejectionRemarks = remarks;
     costReport.rejectedAt = new Date();
+    appendCostReportAuditEntry(costReport, {
+      event: "rejected",
+      changedBy: req.user._id,
+      previousStatus: "submitted",
+      newStatus: "rejected",
+      remarks,
+      summary: `Cost report rejected: ${remarks}`,
+      totalCost: costReport.totalCost,
+      costItemCount: costReport.costItems?.length || 0,
+      revisionNumber: costReport.revisionNumber
+    });
     await costReport.save();
 
     // Update issue status
@@ -487,25 +594,29 @@ export const rejectCostReport = async (req, res) => {
   }
 };
 
-// @desc    Get pending cost reports for manager
+// @desc    Get cost reports for manager review history
 // @route   GET /cost-reports/manager/pending
 // @access  Private (Admin/Manager)
 export const getPendingCostReports = async (req, res) => {
   try {
-    // Get all issues managed by this user
-    const issues = await Issue.find({ propertyManager: req.user._id });
-    const issueIds = issues.map(i => i._id);
-
-    // Get pending cost reports
+    // Keep submitted, approved, and rejected reports visible in the manager dashboard
     const costReports = await CostReport.find({
-      issue: { $in: issueIds },
-      status: "submitted"
+      status: { $in: ["submitted", "approved", "rejected"] }
     })
-      .populate("issue", "issueType building unitNumber")
+      .populate({
+        path: "issue",
+        select: "issueType building floor unit unitNumber specificSpot priority propertyManager",
+        populate: [{ path: "building", select: "name address city" }, { path: "propertyManager", select: "name email" }]
+      })
       .populate("createdBy", "name email")
-      .sort({ submittedAt: -1 });
+      .sort({ updatedAt: -1, submittedAt: -1 });
 
-    return res.json({ costReports });
+    const visibleReports = costReports.filter((report) => {
+      const propertyManagerId = report.issue?.propertyManager?._id?.toString?.() || report.issue?.propertyManager?.toString?.();
+      return propertyManagerId === req.user._id.toString();
+    });
+
+    return res.json({ costReports: visibleReports });
 
   } catch (error) {
     console.error("Get pending cost reports error:", error);

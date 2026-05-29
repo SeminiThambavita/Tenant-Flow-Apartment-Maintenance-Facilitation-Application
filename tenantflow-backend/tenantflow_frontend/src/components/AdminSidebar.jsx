@@ -7,6 +7,8 @@ const navItems = [
   { key: 'properties', label: 'Properties', path: '/admin/properties', icon: '▣' },
   { key: 'staff', label: 'Task Assignment', path: '/admin/staff-assignments', icon: '⌂' },
   { key: 'repairs', label: 'Tasks List', path: '/admin/in-progress-repairs', icon: '⚒' },
+  { key: 'cost-reports', label: 'Cost Report Approvals', path: '/admin-dashboard#cost-report-approvals', icon: '✓' },
+  { key: 'staff-approvals', label: 'Staff Approvals', path: '/admin-dashboard#staff-approvals', icon: '👥' },
   { key: 'profile', label: 'Profile', path: '/admin/profile', icon: '⚙' },
 ];
 
@@ -35,8 +37,8 @@ export default function AdminSidebar({ active = 'dashboard', profileName = 'Prop
                     : 'text-[#2A2E3F] hover:bg-[#F6F7FB]'
                 }`}
               >
-                <span>{item.icon}</span>
-                <span>{item.label}</span>
+                <span className="w-5 text-center shrink-0">{item.icon}</span>
+                <span className="truncate">{item.label}</span>
               </button>
             );
           })}

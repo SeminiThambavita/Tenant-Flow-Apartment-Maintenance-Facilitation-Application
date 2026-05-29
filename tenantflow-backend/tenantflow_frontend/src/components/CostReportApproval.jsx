@@ -1,11 +1,22 @@
 import { useState } from 'react';
 import { costReportAPI } from '../api';
 
+const getBuildingLabel = (value) => {
+  if (!value) return '—';
+  if (typeof value === 'string') return value;
+  return value.name || '—';
+};
+
+const getIssueUnit = (issue) => issue?.unit || issue?.unitNumber || '—';
+
 export default function CostReportApproval({ costReport, issue, onApprovalComplete, onClose }) {
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectRemarks, setRejectRemarks] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const normalizedStatus = String(costReport?.status || '').toLowerCase();
+  const isReviewable = !['approved', 'rejected'].includes(normalizedStatus);
+  const isPendingReview = normalizedStatus === 'submitted';
 
   const handleApprove = async () => {
     setLoading(true);
@@ -53,11 +64,23 @@ export default function CostReportApproval({ costReport, issue, onApprovalComple
               Submitted by {costReport.createdBy?.name} on {new Date(costReport.submittedAt).toLocaleDateString()}
             </p>
           </div>
-          <span className="px-4 py-2 bg-yellow-100 text-yellow-800 rounded-full text-sm font-semibold">
-            Pending Review
+          <span
+            className={`px-4 py-2 rounded-full text-sm font-semibold ${
+              isPendingReview ? 'bg-yellow-100 text-yellow-800' : 'bg-slate-100 text-slate-700'
+            }`}
+          >
+            {isPendingReview ? 'Pending Review' : `Status: ${String(costReport?.status || 'Unknown').charAt(0).toUpperCase()}${String(costReport?.status || 'Unknown').slice(1)}`}
           </span>
         </div>
       </div>
+
+      {!isReviewable && (
+        <div className="px-6 pt-4">
+          <div className="p-4 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-700">
+            This cost report is no longer pending review. You can view the details below, but approval actions are disabled.
+          </div>
+        </div>
+      )}
 
       <div className="p-6">
         {/* Error Message */}
@@ -77,7 +100,7 @@ export default function CostReportApproval({ costReport, issue, onApprovalComple
             </div>
             <div>
               <p className="text-gray-600">Location</p>
-              <p className="font-medium text-gray-800">{issue.building}, Unit {issue.unitNumber}</p>
+              <p className="font-medium text-gray-800">{getBuildingLabel(issue.building)}, Unit {getIssueUnit(issue)}</p>
             </div>
             <div>
               <p className="text-gray-600">Specific Spot</p>
@@ -99,8 +122,8 @@ export default function CostReportApproval({ costReport, issue, onApprovalComple
                 <tr className="border-b border-gray-300">
                   <th className="text-left py-2 px-3 font-semibold text-gray-700">Item</th>
                   <th className="text-left py-2 px-3 font-semibold text-gray-700">Category</th>
-                  <th className="text-right py-2 px-3 font-semibold text-gray-700">Qty</th>
-                  <th className="text-right py-2 px-3 font-semibold text-gray-700">Unit Cost</th>
+                  <th className="text-right py-2 px-3 font-semibold text-gray-700">Qty / Hrs</th>
+                  <th className="text-right py-2 px-3 font-semibold text-gray-700">Unit Cost / Rate</th>
                   <th className="text-right py-2 px-3 font-semibold text-gray-700">Total</th>
                 </tr>
               </thead>
@@ -120,8 +143,8 @@ export default function CostReportApproval({ costReport, issue, onApprovalComple
                         {item.category}
                       </span>
                     </td>
-                    <td className="py-3 px-3 text-right">{item.quantity}</td>
-                    <td className="py-3 px-3 text-right">LKR {item.unitCost?.toFixed(2)}</td>
+                    <td className="py-3 px-3 text-right">{item.category === 'labor' ? (item.hours || item.quantity || 0) : (item.quantity || 0)}</td>
+                    <td className="py-3 px-3 text-right">LKR {(item.category === 'labor' ? item.rate : item.unitCost)?.toFixed(2)}</td>
                     <td className="py-3 px-3 text-right font-medium">LKR {item.cost?.toFixed(2)}</td>
                   </tr>
                 ))}
@@ -178,7 +201,7 @@ export default function CostReportApproval({ costReport, issue, onApprovalComple
         )}
 
         {/* Rejection Form */}
-        {showRejectForm && (
+        {isReviewable && showRejectForm && (
           <div className="mb-6 p-4 border-2 border-red-300 rounded-lg bg-red-50">
             <h3 className="font-semibold text-gray-800 mb-3">Rejection Remarks</h3>
             <textarea
@@ -193,7 +216,7 @@ export default function CostReportApproval({ costReport, issue, onApprovalComple
 
         {/* Actions */}
         <div className="flex gap-3 pt-4 border-t border-gray-200">
-          {!showRejectForm ? (
+          {isReviewable ? (!showRejectForm ? (
             <>
               <button
                 type="button"
@@ -239,6 +262,14 @@ export default function CostReportApproval({ costReport, issue, onApprovalComple
                 {loading ? 'Rejecting...' : 'Confirm Rejection'}
               </button>
             </>
+          )) : (
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition"
+            >
+              Close
+            </button>
           )}
         </div>
 
