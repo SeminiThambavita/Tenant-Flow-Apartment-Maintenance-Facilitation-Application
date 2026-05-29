@@ -13,6 +13,7 @@ import StaffAvailability from './pages/StaffAvailability';
 import StaffProfile from './pages/StaffProfile';
 import StaffTaskDetail from './pages/StaffTaskDetail';
 import StaffCostReportPage from './pages/StaffCostReportPage';
+import InvoicesPage from './pages/InvoicesPage';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminInProgressRepairs from './pages/AdminInProgressRepairs';
 import AdminRepairDetail from './pages/AdminRepairDetail';
@@ -50,6 +51,7 @@ function AppContent() {
           <Route path="/register" element={<Register />} />
           <Route path="/register-staff" element={<StaffRegister />} />
           <Route path="/tenant-dashboard" element={<TenantDashboard />} />
+          <Route path="/invoices" element={<InvoicesPage />} />
           <Route path="/payment" element={<Payment />} />
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/cancel" element={<PaymentCancel />} />

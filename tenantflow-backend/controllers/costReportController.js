@@ -104,7 +104,11 @@ export const getCostReportById = async (req, res) => {
         ]
       })
       .populate("createdBy", "name email")
-      .populate("approvedBy", "name email");
+      .populate("approvedBy", "name email")
+      .populate({
+        path: "invoice",
+        select: "invoiceNumber status total issuedAt dueDate notes paymentStatus paymentMethod costBreakdown laborCharge partsCharge issueTitle issueType tenant issue location sentToTenantAt"
+      });
 
     if (!costReport) {
       return res.status(404).json({ message: "Cost report not found" });
@@ -420,9 +424,9 @@ export const approveCostReport = async (req, res) => {
       invoiceNumber,
       issueTitle: `${costReport.issue.issueType} - Cost Invoice`,
       issueType: costReport.issue.issueType,
-      status: "submitted",
+      status: "draft",
       location: {
-        building: costReport.issue.building,
+        building: costReport.issue.building?.name || costReport.issue.building,
         unitNumber: costReport.issue.unitNumber
       },
       costBreakdown: costReport.costBreakdown,
@@ -467,27 +471,12 @@ export const approveCostReport = async (req, res) => {
       type: "task_status_changed",
       issue: costReport.issue._id,
       title: "Cost Report Approved",
-      message: `Your cost report has been approved. Invoice generated for LKR ${costReport.totalCost.toFixed(2)}. Awaiting tenant payment.`,
+      message: `Your cost report has been approved. Invoice generated for LKR ${costReport.totalCost.toFixed(2)} and saved as a draft for the property manager.`,
       data: {
         newStatus: "invoice issued",
         totalCost: costReport.totalCost
       },
       actionUrl: `/staff/tasks/${costReport.issue._id}`
-    });
-
-    // Notify tenant of invoice
-    await createNotification(updatedIssue.tenant._id, {
-      type: "task_status_changed",
-      issue: costReport.issue._id,
-      title: "Invoice Ready for Payment",
-      message: `Your invoice has been submitted for payment. Total amount due: LKR ${costReport.totalCost.toFixed(2)}`,
-      data: {
-        newStatus: "invoice submitted",
-        totalCost: costReport.totalCost,
-        invoiceId: invoice._id,
-        invoiceNumber: invoice.invoiceNumber
-      },
-      actionUrl: `/tenant-dashboard?menu=invoices&invoiceId=${invoice._id}`
     });
 
     return res.json({

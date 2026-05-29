@@ -1,6 +1,30 @@
 import { useEffect, useState } from 'react';
 import { invoiceAPI, paymentAPI } from '../api';
 
+const getBuildingLabel = (building) => {
+  if (!building) return '—';
+  if (typeof building === 'string') return building;
+  return building.name || building.address || '—';
+};
+
+const getIssueLabel = (invoice) => {
+  const issue = invoice.issue;
+  const type = issue?.issueType || invoice.issueType || 'Maintenance';
+  const spot = issue?.specificSpot || issue?.description || '';
+  return spot ? `${type} - ${spot}` : type;
+};
+
+const normalizeInvoice = (invoice) => ({
+  ...invoice,
+  locationLabel: `${getBuildingLabel(invoice.location?.building || invoice.issue?.building)} , Unit ${invoice.location?.unitNumber || invoice.issue?.unitNumber || invoice.issue?.unit || '—'}`.replace(' ,', ','),
+  relatedIssueLabel: getIssueLabel(invoice),
+  location: {
+    ...invoice.location,
+    building: getBuildingLabel(invoice.location?.building),
+    unitNumber: invoice.location?.unitNumber || invoice.issue?.unitNumber || invoice.issue?.unit || '—'
+  }
+});
+
 export default function InvoicesList() {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,7 +40,7 @@ export default function InvoicesList() {
     setError('');
     try {
       const response = await invoiceAPI.getAll();
-      setInvoices(response.data || []);
+      setInvoices((response.data.invoices || []).map(normalizeInvoice));
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load invoices');
       console.error('Error loading invoices:', err);
@@ -46,6 +70,8 @@ export default function InvoicesList() {
 
   const getStatusBadge = (status) => {
     switch (status) {
+      case 'draft':
+        return 'bg-gray-100 text-gray-700';
       case 'submitted':
         return 'bg-sky-100 text-sky-800';
       case 'pending':
@@ -60,6 +86,7 @@ export default function InvoicesList() {
   };
 
   const formatStatus = (status) => {
+    if (String(status || '').toLowerCase() === 'draft') return 'Draft';
     if (String(status || '').toLowerCase() === 'submitted') return 'Invoice Submitted';
     if (String(status || '').toLowerCase() === 'paid') return 'Payment Successful';
     return String(status || '').charAt(0).toUpperCase() + String(status || '').slice(1);
@@ -104,6 +131,8 @@ export default function InvoicesList() {
                   <div>
                     <h3 className="text-lg font-semibold text-gray-800">{invoice.invoiceNumber}</h3>
                     <p className="text-sm text-gray-600 mt-1">{invoice.issueTitle}</p>
+                    <p className="text-xs text-gray-500 mt-1">Task: {invoice.taskId || invoice.issue?._id || invoice.issue}</p>
+                    <p className="text-xs text-gray-500 mt-1">Related Issue: {invoice.relatedIssueLabel || getIssueLabel(invoice)}</p>
                   </div>
                   <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(invoice.status)}`}>
                     {formatStatus(invoice.status)}
@@ -117,7 +146,7 @@ export default function InvoicesList() {
                   </div>
                   <div>
                     <p className="text-xs text-gray-600">Location</p>
-                    <p className="font-medium text-gray-800">{invoice.location?.building}, Unit {invoice.location?.unitNumber}</p>
+                    <p className="font-medium text-gray-800">{invoice.locationLabel || `${getBuildingLabel(invoice.location?.building)}, Unit ${invoice.location?.unitNumber || '—'}`}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-600">Issued Date</p>

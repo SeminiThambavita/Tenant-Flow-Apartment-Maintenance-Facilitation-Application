@@ -22,9 +22,9 @@ export default function CostReportApproval({ costReport, issue, onApprovalComple
     setLoading(true);
     setError('');
     try {
-      await costReportAPI.approve(costReport._id);
+      const response = await costReportAPI.approve(costReport._id);
       if (onApprovalComplete) {
-        onApprovalComplete('approved');
+        onApprovalComplete('approved', response.data?.invoice || null);
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to approve cost report');

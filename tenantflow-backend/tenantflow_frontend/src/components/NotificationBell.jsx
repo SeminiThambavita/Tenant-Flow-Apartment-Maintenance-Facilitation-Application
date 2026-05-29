@@ -27,6 +27,8 @@ export default function NotificationBell() {
         return '✓';
       case 'task_status_changed':
         return '⚙️';
+      case 'invoice_sent':
+        return '📄';
       default:
         return '🔔';
     }
@@ -40,6 +42,8 @@ export default function NotificationBell() {
         return 'bg-green-50 border-green-200';
       case 'task_status_changed':
         return 'bg-purple-50 border-purple-200';
+      case 'invoice_sent':
+        return 'bg-blue-50 border-blue-200';
       default:
         return 'bg-gray-50 border-gray-200';
     }

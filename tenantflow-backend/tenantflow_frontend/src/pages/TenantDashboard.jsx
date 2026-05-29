@@ -8,6 +8,30 @@ import usePolling from '../hooks/usePolling';
 import { formatStatusLabel, getStatusBadgeTheme, isCompletedStatus, isOpenStatus, normalizeStatus } from '../utils/issueStatus';
 import { addNotification, getNotifications, markNotificationRead } from '../utils/notifications';
 
+const getBuildingLabel = (building) => {
+  if (!building) return '—';
+  if (typeof building === 'string') return building;
+  return building.name || building.address || '—';
+};
+
+const getIssueLabel = (invoice) => {
+  const issue = invoice.issue;
+  const type = issue?.issueType || invoice.issueType || 'Maintenance';
+  const spot = issue?.specificSpot || issue?.description || '';
+  return spot ? `${type} - ${spot}` : type;
+};
+
+const normalizeInvoice = (invoice) => ({
+  ...invoice,
+  locationLabel: `${getBuildingLabel(invoice.location?.building || invoice.issue?.building)} , Unit ${invoice.location?.unitNumber || invoice.issue?.unitNumber || invoice.issue?.unit || '—'}`.replace(' ,', ','),
+  relatedIssueLabel: getIssueLabel(invoice),
+  location: {
+    ...invoice.location,
+    building: getBuildingLabel(invoice.location?.building),
+    unitNumber: invoice.location?.unitNumber || invoice.issue?.unitNumber || invoice.issue?.unit || '—'
+  }
+});
+
 export default function TenantDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -159,7 +183,7 @@ export default function TenantDashboard() {
     try {
       const response = await invoiceAPI.getAll();
       const fetchedInvoices = response.data.invoices || [];
-      setInvoices(applyPaidOverrides(fetchedInvoices));
+      setInvoices(applyPaidOverrides(fetchedInvoices.map(normalizeInvoice)));
     } catch (err) {
       setInvoiceError('Failed to load invoices.');
       setInvoices([]);
@@ -382,6 +406,8 @@ export default function TenantDashboard() {
 
   const getInvoiceBadge = (status) => {
     switch (String(status || '').toLowerCase()) {
+      case 'draft':
+        return 'bg-gray-100 text-gray-700 border border-gray-200';
       case 'submitted':
         return 'bg-sky-100 text-sky-800 border border-sky-200';
       case 'pending':
@@ -396,6 +422,9 @@ export default function TenantDashboard() {
   };
 
   const formatInvoiceStatus = (status) => {
+    if (String(status || '').toLowerCase() === 'draft') {
+      return 'Draft';
+    }
     if (String(status || '').toLowerCase() === 'submitted') {
       return 'Invoice Submitted';
     }
@@ -1028,6 +1057,12 @@ export default function TenantDashboard() {
                 <p className="text-xs text-slate-500 mt-1">
                   {selectedInvoice.invoiceNumber || selectedInvoice.id || selectedInvoice._id}
                 </p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Task: {selectedInvoice.taskId || selectedInvoice.issue?._id || selectedInvoice.issue || '—'}
+                </p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Task Name: {selectedInvoice.taskName || selectedInvoice.relatedIssueLabel || '—'}
+                </p>
               </div>
               <button
                 type="button"
@@ -1038,6 +1073,14 @@ export default function TenantDashboard() {
               </button>
             </div>
             <div className="mt-4 space-y-2 text-xs text-slate-600">
+              <div className="flex justify-between">
+                <span className="font-semibold">Location:</span>
+                <span>{selectedInvoice.locationLabel || `${getBuildingLabel(selectedInvoice.location?.building)}, Unit ${selectedInvoice.location?.unitNumber || '—'}`}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-semibold">Related Issue:</span>
+                <span className="text-right max-w-[240px]">{selectedInvoice.relatedIssueLabel || getIssueLabel(selectedInvoice)}</span>
+              </div>
               <div className="flex justify-between">
                 <span className="font-semibold">Invoice Date:</span>
                 <span>{new Date(selectedInvoice.issuedAt).toLocaleDateString()}</span>
@@ -1068,7 +1111,7 @@ export default function TenantDashboard() {
               >
                 Close
               </button>
-              {String(selectedInvoice.status || '').toLowerCase() !== 'paid' && (
+              {['submitted', 'pending', 'overdue'].includes(String(selectedInvoice.status || '').toLowerCase()) && (
                 <button
                   type="button"
                   onClick={() => navigate('/payment', { state: { invoice: selectedInvoice } })}

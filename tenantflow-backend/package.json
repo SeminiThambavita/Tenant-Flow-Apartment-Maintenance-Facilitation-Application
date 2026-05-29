@@ -9,7 +9,8 @@
   "dev": "nodemon server.js",
   "seed:admin": "node seedAdmin.js",
   "seed:buildings": "node seeds/seedBuildings.js",
-  "migrate:issue-statuses": "node migrateIssueStatuses.js"
+  "migrate:issue-statuses": "node migrateIssueStatuses.js",
+  "migrate:task-ids": "node migrateTaskIds.js"
 },
   "keywords": [],
   "author": "",

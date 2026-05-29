@@ -1,4 +1,5 @@
 import Notification from "../models/Notification.js";
+import Invoice from "../models/Invoice.js";
 import Issue from "../models/Issue.js";
 import User from "../models/User.js";
 
@@ -15,6 +16,47 @@ export const createNotification = async (recipientId, notificationData) => {
   } catch (error) {
     console.error("Error creating notification:", error);
     throw error;
+  }
+};
+
+/**
+ * Notify a tenant that an invoice has been sent
+ */
+export const notifyInvoiceSent = async (invoiceId, senderId) => {
+  try {
+    const invoice = await Invoice.findById(invoiceId)
+      .populate("tenant", "name email")
+      .populate({
+        path: "issue",
+        select: "issueType building unitNumber unit",
+        populate: [{ path: "building", select: "name" }]
+      })
+      .exec();
+
+    if (!invoice || !invoice.tenant) {
+      console.error("Invoice or tenant not found for invoice notification:", invoiceId);
+      return;
+    }
+
+    await createNotification(invoice.tenant._id, {
+      type: "invoice_sent",
+      issue: invoice.issue?._id || invoice.issue,
+      title: "Invoice Sent to You",
+      message: `Your invoice ${invoice.invoiceNumber} is now available in My Invoices. Total due: LKR ${Number(invoice.total || 0).toFixed(2)}.`,
+      actionUrl: `/tenant-dashboard?menu=invoices&invoiceId=${invoice._id}`,
+      data: {
+        invoiceId: invoice._id,
+        invoiceNumber: invoice.invoiceNumber,
+        issueType: invoice.issue?.issueType,
+        unitNumber: invoice.location?.unitNumber || invoice.issue?.unitNumber || invoice.issue?.unit,
+        building: invoice.location?.building || invoice.issue?.building?.name,
+        total: invoice.total,
+        newStatus: invoice.status,
+        changedBy: senderId?.toString?.() || senderId
+      }
+    });
+  } catch (error) {
+    console.error("Error notifying invoice sent:", error);
   }
 };
 

@@ -1,6 +1,30 @@
 import Task from "../models/Task.js";
 import Issue from "../models/Issue.js";
 
+const findTaskByCanonicalId = async (id) => {
+  let task = await Task.findById(id);
+
+  if (!task) {
+    task = await Task.findOne({ issue: id });
+  }
+
+  return task;
+};
+
+const serializeTask = (task) => {
+  if (!task) return null;
+
+  const plainTask = typeof task.toObject === "function" ? task.toObject() : task;
+  const canonicalId = plainTask.issue?._id?.toString?.() || plainTask.issue?.toString?.() || plainTask._id?.toString?.();
+
+  return {
+    ...plainTask,
+    _id: canonicalId,
+    id: canonicalId,
+    taskId: canonicalId
+  };
+};
+
 // CREATE TASK
 export const createTask = async (req, res) => {
   try {
@@ -15,7 +39,16 @@ export const createTask = async (req, res) => {
       return res.status(404).json({ message: "Issue not found" });
     }
 
+    const existingTask = await Task.findOne({ issue: issueId });
+    if (existingTask) {
+      return res.status(200).json({
+        message: "Task already exists for this issue",
+        task: serializeTask(existingTask)
+      });
+    }
+
     const task = await Task.create({
+      _id: issue._id,
       issue: issueId,
       assignedTo,
       description: issue.description,
@@ -30,7 +63,7 @@ export const createTask = async (req, res) => {
     // Update issue status to 'assigned'
     await Issue.findByIdAndUpdate(issueId, { status: "assigned", assignedTo });
 
-    return res.status(201).json({ message: "Task created successfully", task });
+    return res.status(201).json({ message: "Task created successfully", task: serializeTask(task) });
   } catch (error) {
     return res.status(500).json({ message: "Failed to create task", error: error.message });
   }
@@ -62,7 +95,7 @@ export const getTasks = async (req, res) => {
       .populate("building", "name")
       .sort({ createdAt: -1 });
 
-    return res.json({ count: tasks.length, tasks });
+    return res.json({ count: tasks.length, tasks: tasks.map(serializeTask) });
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch tasks", error: error.message });
   }
@@ -71,7 +104,7 @@ export const getTasks = async (req, res) => {
 // GET SINGLE TASK
 export const getTaskById = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id)
+    const task = await findTaskByCanonicalId(req.params.id)
       .populate("issue")
       .populate("assignedTo", "name email phone")
       .populate("building", "name")
@@ -86,7 +119,7 @@ export const getTaskById = async (req, res) => {
       return res.status(403).json({ message: "Not authorized to view this task" });
     }
 
-    return res.json({ task });
+    return res.json({ task: serializeTask(task) });
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch task", error: error.message });
   }
@@ -97,7 +130,7 @@ export const updateTask = async (req, res) => {
   try {
     const { status, actualHours, notes, completionNotes, dueDate, priority } = req.body;
 
-    const task = await Task.findById(req.params.id);
+    const task = await findTaskByCanonicalId(req.params.id);
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }
@@ -130,7 +163,7 @@ export const updateTask = async (req, res) => {
       await Issue.findByIdAndUpdate(task.issue, { status: "task done" });
     }
 
-    return res.json({ message: "Task updated successfully", task });
+    return res.json({ message: "Task updated successfully", task: serializeTask(task) });
   } catch (error) {
     return res.status(500).json({ message: "Failed to update task", error: error.message });
   }
@@ -139,7 +172,7 @@ export const updateTask = async (req, res) => {
 // DELETE TASK
 export const deleteTask = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id);
+    const task = await findTaskByCanonicalId(req.params.id);
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }
@@ -149,7 +182,7 @@ export const deleteTask = async (req, res) => {
       return res.status(403).json({ message: "Only administrators can delete tasks" });
     }
 
-    await Task.findByIdAndDelete(req.params.id);
+    await Task.findByIdAndDelete(task._id);
 
     return res.json({ message: "Task deleted successfully" });
   } catch (error) {
