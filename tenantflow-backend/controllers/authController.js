@@ -346,6 +346,8 @@ const formatProfileUser = (user) => ({
   email: user.email,
   phone: user.phone,
   role: user.role,
+  profileImage: user.profileImage || user.staffProfilePhoto,
+  staffProfilePhoto: user.staffProfilePhoto,
   buildingName: user.buildingName,
   unitNumber: user.unitNumber,
   apartmentNumber: user.apartmentNumber,

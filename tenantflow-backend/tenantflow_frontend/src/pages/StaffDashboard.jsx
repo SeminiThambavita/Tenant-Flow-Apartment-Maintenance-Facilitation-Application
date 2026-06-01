@@ -5,6 +5,7 @@ import StaffNav from '../components/StaffNav';
 import ProfileDropdown from '../components/ProfileDropdown';
 import usePolling from '../hooks/usePolling';
 import { formatStatusLabel, getStatusBadgeTheme, isOpenStatus, normalizeStatus } from '../utils/issueStatus';
+import { getUserProfileImage } from '../utils/profileImage';
 
 const STATUS_FILTERS = [
   { value: 'all', label: 'All' },
@@ -22,6 +23,7 @@ export default function StaffDashboard() {
   const navigate = useNavigate();
   const role = localStorage.getItem('role');
   const [profile, setProfile] = useState({ name: 'Staff Member', workStatus: 'on-call' });
+  const [profileImage, setProfileImage] = useState('');
   const [tasks, setTasks] = useState([]);
   const [statusFilter, setStatusFilter] = useState('all');
 
@@ -44,10 +46,12 @@ export default function StaffDashboard() {
         name: currentUser.name || 'Staff Member',
         workStatus: currentUser.workStatus || 'on-call',
       });
+      setProfileImage(getUserProfileImage(currentUser));
 
       setTasks(issuesResponse?.data?.issues || []);
     } catch {
       setTasks([]);
+      setProfileImage('');
     }
   }, [role]);
 
@@ -112,7 +116,7 @@ export default function StaffDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <StaffNav active="dashboard" profileName={profile.name} />
+      <StaffNav active="dashboard" profileName={profile.name} profileImage={profileImage} />
 
       <main className="max-w-2xl mx-auto pt-8 pb-10 px-4">
         <div className="mb-8">

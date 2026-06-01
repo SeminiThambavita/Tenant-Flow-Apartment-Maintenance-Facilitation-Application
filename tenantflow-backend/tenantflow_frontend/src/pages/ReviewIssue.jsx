@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { issueAPI } from '../api';
+import { authAPI, issueAPI } from '../api';
 import Logo from '../components/Logo';
 import { addNotification } from '../utils/notifications';
+import { buildFileUrl, getUserProfileImage } from '../utils/profileImage';
 
 const URGENCY_LABELS = {
   urgent: { label: 'High Priority', tag: 'URGENT', color: 'text-orange-600 bg-orange-50 border-orange-200' },
@@ -25,6 +26,9 @@ export default function ReviewIssue() {
   const navigate = useNavigate();
   const location = useLocation();
   const role = localStorage.getItem('role');
+  const [userName, setUserName] = useState('Tenant');
+  const [userInitials, setUserInitials] = useState('T');
+  const [profileImage, setProfileImage] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [mediaPreviews, setMediaPreviews] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,6 +39,47 @@ export default function ReviewIssue() {
       navigate('/login');
     }
   }, [role, navigate]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProfile = async () => {
+      try {
+        const response = await authAPI.getProfile();
+        const user = response?.data?.user;
+
+        if (!isMounted || !user) {
+          return;
+        }
+
+        const name = user.name || 'Tenant';
+        setUserName(name);
+        setUserInitials(
+          name
+            .split(' ')
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((part) => part[0].toUpperCase())
+            .join('') || 'T'
+        );
+        setProfileImage(getUserProfileImage(user));
+      } catch {
+        if (isMounted) {
+          setUserName('Tenant');
+          setUserInitials('T');
+          setProfileImage('');
+        }
+      }
+    };
+
+    if (role === 'tenant') {
+      loadProfile();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [role]);
 
   useEffect(() => {
     const files = (location.state && location.state.mediaFiles) || [];
@@ -164,10 +209,14 @@ export default function ReviewIssue() {
               onClick={() => navigate('/profile')}
               className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 px-2 py-1.5 rounded-lg transition"
             >
-              <div className="w-7 h-7 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-[10px]">
-                S
+              <div className="w-7 h-7 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-[10px] overflow-hidden">
+                {profileImage ? (
+                  <img src={buildFileUrl(profileImage)} alt={userName} className="w-full h-full object-cover" />
+                ) : (
+                  userInitials
+                )}
               </div>
-              <span className="text-[11px] font-medium text-gray-700">Sumi</span>
+              <span className="text-[11px] font-medium text-gray-700">{userName}</span>
             </button>
           </div>
         </div>

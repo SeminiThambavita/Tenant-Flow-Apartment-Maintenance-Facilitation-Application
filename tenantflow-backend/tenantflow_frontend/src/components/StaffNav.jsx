@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import Logo from './Logo';
 import ProfileDropdown from './ProfileDropdown';
 import NotificationBell from './NotificationBell';
+import { buildFileUrl } from '../utils/profileImage';
 
 const NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard', path: '/staff-dashboard' },
@@ -23,11 +24,13 @@ export function getInitials(name) {
 export default function StaffNav({
   active = 'dashboard',
   profileName = 'Staff Member',
+  profileImage = '',
   showBack = false,
   backLabel = 'Back',
   backPath = '/staff-dashboard',
 }) {
   const navigate = useNavigate();
+  const avatarUrl = buildFileUrl(profileImage);
 
   return (
     <header className="h-14 bg-white border-b border-[#E5E7EF] flex items-center justify-between px-4 md:px-6 sticky top-0 z-50">
@@ -63,7 +66,7 @@ export default function StaffNav({
           );
         })}
         <NotificationBell />
-        <ProfileDropdown userName={profileName} userInitials={getInitials(profileName)} />
+        <ProfileDropdown userName={profileName} userInitials={getInitials(profileName)} profileImage={avatarUrl} />
       </nav>
     </header>
   );

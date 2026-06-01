@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../api';
 import StaffNav from '../components/StaffNav';
+import { buildFileUrl, getUserProfileImage } from '../utils/profileImage';
 
 export default function StaffProfile() {
   const navigate = useNavigate();
@@ -25,6 +26,7 @@ export default function StaffProfile() {
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState('');
+  const [profileImage, setProfileImage] = useState('');
 
   useEffect(() => {
     if (role !== 'staff') {
@@ -51,6 +53,7 @@ export default function StaffProfile() {
             workStatus: user.workStatus || '-',
             yearsOfExperience: user.yearsOfExperience ?? 0,
           });
+          setProfileImage(getUserProfileImage(user));
         }
       } catch {
         if (isActive) {
@@ -118,6 +121,7 @@ export default function StaffProfile() {
             workStatus: user.workStatus || prev.workStatus,
             yearsOfExperience: user.yearsOfExperience ?? prev.yearsOfExperience,
           }));
+          setProfileImage(getUserProfileImage(user));
         }
 
         setProfileSuccess('Profile updated successfully.');
@@ -156,6 +160,7 @@ export default function StaffProfile() {
       <StaffNav
         active="profile"
         profileName={profileForm.name}
+        profileImage={profileImage}
         showBack
         backPath="/staff-dashboard"
       />
@@ -175,7 +180,15 @@ export default function StaffProfile() {
 
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">
-              {profileForm.name ? profileForm.name.charAt(0).toUpperCase() : 'S'}
+              {profileImage ? (
+                <img
+                  src={buildFileUrl(profileImage)}
+                  alt={profileForm.name || 'Staff Member'}
+                  className="w-full h-full rounded-full object-cover"
+                />
+              ) : (
+                profileForm.name ? profileForm.name.charAt(0).toUpperCase() : 'S'
+              )}
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-900">

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../api';
 import AdminSidebar from '../components/AdminSidebar';
+import { buildFileUrl, getUserProfileImage } from '../utils/profileImage';
 
 export default function AdminProfile() {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ export default function AdminProfile() {
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState('');
+  const [profileImage, setProfileImage] = useState('');
 
   useEffect(() => {
     if (role !== 'admin') {
@@ -40,6 +42,7 @@ export default function AdminProfile() {
             email: user.email || '',
             phone: user.phone || '',
           });
+          setProfileImage(getUserProfileImage(user));
         }
       } catch {
         if (isActive) setProfileError('Failed to load profile.');
@@ -82,6 +85,7 @@ export default function AdminProfile() {
           email: user.email || '',
           phone: user.phone || '',
         });
+        setProfileImage(getUserProfileImage(user));
       }
       setProfileSuccess('Profile updated successfully.');
     } catch (error) {
@@ -115,6 +119,17 @@ export default function AdminProfile() {
       <AdminSidebar active="profile" profileName={profileForm.name || 'Property Manager'} />
       <main className="flex-1 p-6">
         <div className="flex items-center gap-3 mb-6">
+          <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold overflow-hidden shrink-0">
+            {profileImage ? (
+              <img
+                src={buildFileUrl(profileImage)}
+                alt={profileForm.name || 'Property Manager'}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              profileForm.name ? profileForm.name.charAt(0).toUpperCase() : 'P'
+            )}
+          </div>
           <button
             type="button"
             onClick={() => navigate('/admin-dashboard')}

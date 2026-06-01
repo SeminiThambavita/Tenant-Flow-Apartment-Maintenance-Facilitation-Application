@@ -6,6 +6,7 @@ import ProfileDropdown from '../components/ProfileDropdown';
 import CostReportsDashboard from '../components/CostReportsDashboard';
 import usePolling from '../hooks/usePolling';
 import { formatStatusLabel, isOpenStatus } from '../utils/issueStatus';
+import { getUserProfileImage } from '../utils/profileImage';
 
 const getBuildingLabel = (value) => {
   if (!value) return 'N/A';
@@ -18,6 +19,7 @@ export default function AdminDashboard() {
   const location = useLocation();
   const role = localStorage.getItem('role');
   const [profile, setProfile] = useState({ name: '', email: '', phone: '' });
+  const [profileImage, setProfileImage] = useState('');
   const [issues, setIssues] = useState([]);
   const [pendingStaff, setPendingStaff] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -44,6 +46,7 @@ export default function AdminDashboard() {
           email: currentUser.email || '',
           phone: currentUser.phone || ''
         });
+        setProfileImage(getUserProfileImage(currentUser));
         setIssues(issueResponse?.data?.issues || []);
         setPendingStaff(pendingResponse?.data?.staff || []);
 
@@ -71,6 +74,7 @@ export default function AdminDashboard() {
         setIssues([]);
         setPendingStaff([]);
         setNotifications([]);
+        setProfileImage('');
       }
     };
 
@@ -207,7 +211,7 @@ export default function AdminDashboard() {
               )}
             </div>
             <div className="flex justify-end">
-              <ProfileDropdown userName={profile.name} userInitials={getInitials(profile.name)} />
+              <ProfileDropdown userName={profile.name} userInitials={getInitials(profile.name)} profileImage={profileImage} />
             </div>
           </div>
         </div>

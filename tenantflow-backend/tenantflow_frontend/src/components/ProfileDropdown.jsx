@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { buildFileUrl } from '../utils/profileImage';
 
-export default function ProfileDropdown({ userName = 'User', userInitials = 'U' }) {
+export default function ProfileDropdown({ userName = 'User', userInitials = 'U', profileImage = '' }) {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const avatarUrl = buildFileUrl(profileImage);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -43,10 +45,18 @@ export default function ProfileDropdown({ userName = 'User', userInitials = 'U' 
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold text-sm hover:bg-blue-200 transition"
+        className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold text-sm hover:bg-blue-200 transition overflow-hidden border border-blue-100"
         title={userName}
       >
-        {userInitials}
+        {avatarUrl ? (
+          <img
+            src={avatarUrl}
+            alt={userName}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          userInitials
+        )}
       </button>
 
       {isOpen && (

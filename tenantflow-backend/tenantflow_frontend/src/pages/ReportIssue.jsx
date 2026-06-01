@@ -3,12 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { authAPI, buildingAPI } from '../api';
 import Logo from '../components/Logo';
 import Dialog from '../components/Dialog';
+import { buildFileUrl, getUserProfileImage } from '../utils/profileImage';
 
 const STORAGE_KEY = 'tenantflow_report_issue';
 
 export default function ReportIssue() {
   const navigate = useNavigate();
   const role = localStorage.getItem('role');
+  const [userName, setUserName] = useState('Tenant');
+  const [userInitials, setUserInitials] = useState('T');
+  const [profileImage, setProfileImage] = useState('');
   const [urgency, setUrgency] = useState('standard');
   const [category, setCategory] = useState('');
   const [specificSpot, setSpecificSpot] = useState('');
@@ -18,7 +22,6 @@ export default function ReportIssue() {
   const [floor, setFloor] = useState('');
   const [unit, setUnit] = useState('');
   const [specialArrangements, setSpecialArrangements] = useState({
-    specialAccess: false,
     petsInUnit: false,
     callBeforeArriving: false,
   });
@@ -38,6 +41,47 @@ export default function ReportIssue() {
   }, [role, navigate]);
 
   useEffect(() => {
+    let isMounted = true;
+
+    const loadProfile = async () => {
+      try {
+        const response = await authAPI.getProfile();
+        const user = response?.data?.user;
+
+        if (!isMounted || !user) {
+          return;
+        }
+
+        const name = user.name || 'Tenant';
+        setUserName(name);
+        setUserInitials(
+          name
+            .split(' ')
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((part) => part[0].toUpperCase())
+            .join('') || 'T'
+        );
+        setProfileImage(getUserProfileImage(user));
+      } catch {
+        if (isMounted) {
+          setUserName('Tenant');
+          setUserInitials('T');
+          setProfileImage('');
+        }
+      }
+    };
+
+    if (role === 'tenant') {
+      loadProfile();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [role]);
+
+  useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) {
       return;
@@ -52,7 +96,6 @@ export default function ReportIssue() {
       setBuilding(data.building || '');
       setBuildingId(data.buildingId || '');
       setSpecialArrangements({
-        specialAccess: Boolean(data.specialArrangements?.specialAccess),
         petsInUnit: Boolean(data.specialArrangements?.petsInUnit),
         callBeforeArriving: Boolean(data.specialArrangements?.callBeforeArriving),
       });
@@ -303,10 +346,14 @@ export default function ReportIssue() {
               onClick={() => navigate('/profile')}
               className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 px-2 py-1.5 rounded-lg transition"
             >
-              <div className="w-7 h-7 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-[10px]">
-                S
+              <div className="w-7 h-7 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-[10px] overflow-hidden">
+                {profileImage ? (
+                  <img src={buildFileUrl(profileImage)} alt={userName} className="w-full h-full object-cover" />
+                ) : (
+                  userInitials
+                )}
               </div>
-              <span className="text-[11px] font-medium text-gray-700">Sumi</span>
+              <span className="text-[11px] font-medium text-gray-700">{userName}</span>
             </button>
           </div>
         </div>
@@ -565,15 +612,6 @@ export default function ReportIssue() {
 
             <section className="space-y-3">
               <div className="text-xs font-semibold text-slate-700">SECTION 4: ACCESS & PREFERENCES</div>
-              <label className="flex items-start gap-3 text-xs text-slate-600">
-                <input
-                  type="checkbox"
-                  className="mt-1"
-                  checked={specialArrangements.specialAccess}
-                  onChange={(event) => setSpecialArrangements((prev) => ({ ...prev, specialAccess: event.target.checked }))}
-                />
-                <span>I need special access arrangements.</span>
-              </label>
               <label className="flex items-start gap-3 text-xs text-slate-600">
                 <input
                   type="checkbox"

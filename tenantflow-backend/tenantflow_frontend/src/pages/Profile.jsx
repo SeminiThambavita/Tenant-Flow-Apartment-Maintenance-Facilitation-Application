@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../api';
 import Logo from '../components/Logo';
+import { buildFileUrl, getUserProfileImage } from '../utils/profileImage';
 
 const getTenantResidence = (user) => ({
   buildingName: user?.building?.name || user?.building?.buildingName || user?.buildingName || '',
@@ -36,6 +37,7 @@ export default function Profile() {
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState('');
+  const [profileImage, setProfileImage] = useState('');
   const [residenceInfo, setResidenceInfo] = useState({
     buildingName: '',
     unitNumber: '',
@@ -67,6 +69,7 @@ export default function Profile() {
             apartmentNumber: user.apartmentNumber || '',
             nic: user.nic || '',
           });
+          setProfileImage(getUserProfileImage(user));
           setResidenceInfo(tenantResidence);
         }
       } catch (error) {
@@ -146,6 +149,7 @@ export default function Profile() {
             nic: user.nic || '',
             profilePhoto: null,
           });
+          setProfileImage(getUserProfileImage(user));
           setResidenceInfo(tenantResidence);
         }
 
@@ -209,7 +213,15 @@ export default function Profile() {
           )}
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">
-              {profileForm.name ? profileForm.name.charAt(0).toUpperCase() : 'T'}
+              {profileImage ? (
+                <img
+                  src={buildFileUrl(profileImage)}
+                  alt={profileForm.name || 'Tenant'}
+                  className="w-full h-full rounded-full object-cover"
+                />
+              ) : (
+                profileForm.name ? profileForm.name.charAt(0).toUpperCase() : 'T'
+              )}
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-900">

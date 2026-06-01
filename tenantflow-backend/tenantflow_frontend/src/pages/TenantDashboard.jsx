@@ -7,6 +7,7 @@ import ProfileDropdown from '../components/ProfileDropdown';
 import usePolling from '../hooks/usePolling';
 import { formatStatusLabel, getStatusBadgeTheme, isCompletedStatus, isOpenStatus, normalizeStatus } from '../utils/issueStatus';
 import { addNotification, getNotifications, markNotificationRead } from '../utils/notifications';
+import { getUserProfileImage } from '../utils/profileImage';
 
 const getBuildingLabel = (building) => {
   if (!building) return '—';
@@ -78,6 +79,7 @@ export default function TenantDashboard() {
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [userName, setUserName] = useState('Tenant');
   const [userInitials, setUserInitials] = useState('T');
+  const [profileImage, setProfileImage] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedHistory, setSelectedHistory] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
@@ -141,6 +143,7 @@ export default function TenantDashboard() {
         const response = await authAPI.getProfile();
         if (isActive && response?.data?.user?.name) {
           const name = response.data.user.name;
+          const user = response.data.user;
           setUserName(name);
           setUserInitials(
             name
@@ -150,10 +153,12 @@ export default function TenantDashboard() {
               .map((part) => part[0].toUpperCase())
               .join('') || 'T'
           );
+          setProfileImage(getUserProfileImage(user));
         }
       } catch {
         if (isActive) {
           setUserName('Tenant');
+          setProfileImage('');
         }
       }
     };
@@ -573,7 +578,7 @@ export default function TenantDashboard() {
                 </div>
               )}
             </div>
-            <ProfileDropdown userName={userName} userInitials={userInitials} />
+            <ProfileDropdown userName={userName} userInitials={userInitials} profileImage={profileImage} />
           </div>
         </div>
       </nav>
