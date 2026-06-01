@@ -3,6 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../api';
 import Logo from '../components/Logo';
 
+const getTenantResidence = (user) => ({
+  buildingName: user?.building?.name || user?.building?.buildingName || user?.buildingName || '',
+  unitNumber: user?.unit || user?.unitNumber || user?.apartmentNumber || '',
+  floorNumber: user?.floor !== undefined && user?.floor !== null
+    ? String(user.floor)
+    : user?.floorNumber || '',
+});
+
 export default function Profile() {
   const navigate = useNavigate();
   const role = localStorage.getItem('role');
@@ -28,6 +36,11 @@ export default function Profile() {
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState('');
+  const [residenceInfo, setResidenceInfo] = useState({
+    buildingName: '',
+    unitNumber: '',
+    floorNumber: '',
+  });
 
   useEffect(() => {
     if (role !== 'tenant') {
@@ -46,16 +59,15 @@ export default function Profile() {
         const user = response?.data?.user;
 
         if (isActive && user) {
+          const tenantResidence = getTenantResidence(user);
           setProfileForm({
             name: user.name || '',
             email: user.email || '',
             phone: user.phone || '',
-            buildingName: user.buildingName || '',
-            unitNumber: user.unitNumber || '',
             apartmentNumber: user.apartmentNumber || '',
-            floorNumber: user.floorNumber || '',
             nic: user.nic || '',
           });
+          setResidenceInfo(tenantResidence);
         }
       } catch (error) {
         if (isActive) {
@@ -110,10 +122,10 @@ export default function Profile() {
         payload.append('name', profileForm.name);
         payload.append('email', profileForm.email);
         payload.append('phone', profileForm.phone);
-        payload.append('buildingName', profileForm.buildingName);
-        payload.append('unitNumber', profileForm.unitNumber);
+        payload.append('buildingName', residenceInfo.buildingName);
+        payload.append('unitNumber', residenceInfo.unitNumber);
         payload.append('apartmentNumber', profileForm.apartmentNumber);
-        payload.append('floorNumber', profileForm.floorNumber);
+        payload.append('floorNumber', residenceInfo.floorNumber);
         payload.append('nic', profileForm.nic);
 
         // Append profile photo if selected
@@ -125,17 +137,16 @@ export default function Profile() {
         const user = response?.data?.user;
 
         if (user) {
+          const tenantResidence = getTenantResidence(user);
           setProfileForm({
             name: user.name || '',
             email: user.email || '',
             phone: user.phone || '',
-            buildingName: user.buildingName || '',
-            unitNumber: user.unitNumber || '',
             apartmentNumber: user.apartmentNumber || '',
-            floorNumber: user.floorNumber || '',
             nic: user.nic || '',
             profilePhoto: null,
           });
+          setResidenceInfo(tenantResidence);
         }
 
         setProfileSuccess('Profile updated successfully.');
@@ -218,12 +229,16 @@ export default function Profile() {
               <p className="text-slate-900 font-semibold mt-1">{profileForm.phone || '-'}</p>
             </div>
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-              <p className="text-slate-500">Apartment</p>
-              <p className="text-slate-900 font-semibold mt-1">{profileForm.apartmentNumber || '-'}</p>
+              <p className="text-slate-500">Building Name</p>
+              <p className="text-slate-900 font-semibold mt-1">{residenceInfo.buildingName || '-'}</p>
             </div>
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+              <p className="text-slate-500">Unit Number</p>
+              <p className="text-slate-900 font-semibold mt-1">{residenceInfo.unitNumber || '-'}</p>
+            </div>
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 col-span-2 sm:col-span-1">
               <p className="text-slate-500">Floor</p>
-              <p className="text-slate-900 font-semibold mt-1">{profileForm.floorNumber || '-'}</p>
+              <p className="text-slate-900 font-semibold mt-1">{residenceInfo.floorNumber || '-'}</p>
             </div>
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 col-span-2">
               <p className="text-slate-500">NIC</p>
@@ -287,19 +302,19 @@ export default function Profile() {
               <div>
                 <label className="text-slate-600 font-semibold">Building Name</label>
                 <input
-                  name="buildingName"
-                  value={profileForm.buildingName}
-                  onChange={handleProfileChange}
-                  className="mt-2 w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700"
+                  value={residenceInfo.buildingName}
+                  readOnly
+                  tabIndex={-1}
+                  className="mt-2 w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-500 bg-slate-100 cursor-not-allowed"
                 />
               </div>
               <div>
                 <label className="text-slate-600 font-semibold">Unit Number</label>
                 <input
-                  name="unitNumber"
-                  value={profileForm.unitNumber}
-                  onChange={handleProfileChange}
-                  className="mt-2 w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700"
+                  value={residenceInfo.unitNumber}
+                  readOnly
+                  tabIndex={-1}
+                  className="mt-2 w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-500 bg-slate-100 cursor-not-allowed"
                 />
               </div>
               <div>
@@ -314,10 +329,10 @@ export default function Profile() {
               <div>
                 <label className="text-slate-600 font-semibold">Floor Number</label>
                 <input
-                  name="floorNumber"
-                  value={profileForm.floorNumber}
-                  onChange={handleProfileChange}
-                  className="mt-2 w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700"
+                  value={residenceInfo.floorNumber}
+                  readOnly
+                  tabIndex={-1}
+                  className="mt-2 w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-500 bg-slate-100 cursor-not-allowed"
                 />
               </div>
               <div className="col-span-2">
