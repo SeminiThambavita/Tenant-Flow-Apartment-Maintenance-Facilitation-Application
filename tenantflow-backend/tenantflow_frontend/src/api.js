@@ -46,6 +46,7 @@ export const authAPI = {
   changePassword: (data) => api.put('/auth/password', data),
   getPendingStaff: () => api.get('/auth/staff/pending'),
   getApprovedStaff: () => api.get('/auth/staff/approved'),
+  getStaffById: (id) => api.get(`/auth/staff/details/${id}`),
   getPendingStaffById: (id) => api.get(`/auth/staff/${id}`),
   updateStaffStatus: (id, status) => api.put(`/auth/staff/${id}/status`, { status }),
   getTenants: () => api.get('/auth/tenants'),

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../api';
 import StaffNav from '../components/StaffNav';
+import Dialog from '../components/Dialog';
 
 export default function StaffAvailability() {
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ export default function StaffAvailability() {
   });
   const [isOnline, setIsOnline] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState('');
+  const [dialog, setDialog] = useState({ isOpen: false, title: '', message: '', type: 'success', buttons: [] });
 
   useEffect(() => {
     if (role !== 'staff') {
@@ -59,7 +60,6 @@ export default function StaffAvailability() {
 
   const persistProfile = async (payload) => {
     setSaving(true);
-    setSaveMessage('');
     try {
       const response = await authAPI.updateProfile(payload);
       const user = response?.data?.user || {};
@@ -69,9 +69,9 @@ export default function StaffAvailability() {
         name: user.name || prev.name,
       }));
       if (user.isOnline !== undefined) setIsOnline(user.isOnline !== false);
-      setSaveMessage('Saved successfully.');
+      setDialog({ isOpen: true, title: 'Success', message: 'Saved successfully.', type: 'success' });
     } catch (error) {
-      setSaveMessage(error.response?.data?.message || 'Failed to save.');
+      setDialog({ isOpen: true, title: 'Error', message: error.response?.data?.message || 'Failed to save.', type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -110,10 +110,6 @@ export default function StaffAvailability() {
       <main className="max-w-[700px] mx-auto pt-10 px-4 pb-10 text-center">
         <h1 className="text-3xl md:text-4xl leading-tight font-semibold">Availability</h1>
         <p className="text-sm text-[#646FB1] mt-2 mb-6">Control your real-time status and view your shift details.</p>
-
-        {saveMessage && (
-          <p className="mb-4 text-xs font-medium text-[#3346F2]">{saveMessage}</p>
-        )}
 
         <div className="bg-white rounded-2xl border border-[#D9DEEC] shadow-sm px-8 py-7 text-left">
           <p className="text-[12px] tracking-[0.25em] font-semibold text-[#7783AE] text-center">CURRENT STATUS</p>
@@ -212,6 +208,14 @@ export default function StaffAvailability() {
           <span>Manager View:</span>
           <span className="font-semibold text-[#3346F2]">{isOnline ? 'Visible & Active' : 'Temporarily Unavailable'}</span>
         </div>
+        
+        <Dialog
+          isOpen={dialog.isOpen}
+          title={dialog.title}
+          message={dialog.message}
+          type={dialog.type}
+          onClose={() => setDialog({ ...dialog, isOpen: false })}
+        />
       </main>
     </div>
   );

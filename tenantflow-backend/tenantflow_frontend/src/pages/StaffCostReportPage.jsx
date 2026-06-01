@@ -4,6 +4,7 @@ import { costReportAPI, issueAPI } from '../api';
 import StaffNav from '../components/StaffNav';
 import usePolling from '../hooks/usePolling';
 import { formatStatusLabel, getStatusBadgeTheme, normalizeStatus } from '../utils/issueStatus';
+import Dialog from '../components/Dialog';
 
 const emptyItem = () => ({
   itemName: '',
@@ -48,7 +49,7 @@ export default function StaffCostReportPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [dialog, setDialog] = useState({ isOpen: false, title: '', message: '', type: 'success', buttons: [] });
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState([emptyItem()]);
 
@@ -150,7 +151,6 @@ export default function StaffCostReportPage() {
     if (!costReport?._id) return;
     setSaving(true);
     setError('');
-    setSuccessMessage('');
     try {
       await costReportAPI.update(costReport._id, {
         costItems: items.map((item) => ({
@@ -176,7 +176,6 @@ export default function StaffCostReportPage() {
 
     setSaving(true);
     setError('');
-    setSuccessMessage('');
     try {
       await costReportAPI.update(costReport._id, {
         costItems: items.map((item) => ({
@@ -186,7 +185,7 @@ export default function StaffCostReportPage() {
         notes,
       });
       await costReportAPI.submit(costReport._id);
-      setSuccessMessage('Cost report successfully submitted for approval.');
+      setDialog({ isOpen: true, title: 'Success', message: 'Cost report successfully submitted for approval.', type: 'success' });
       await loadData({ syncForm: true });
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to send cost report for approval.');
@@ -226,11 +225,6 @@ export default function StaffCostReportPage() {
           <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 text-sm">{error}</div>
         ) : issue ? (
           <div className="space-y-4">
-            {successMessage && (
-              <div className="bg-green-50 border border-green-200 text-green-800 rounded-lg p-4 text-sm font-medium">
-                {successMessage}
-              </div>
-            )}
             {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 text-sm">{error}</div>}
 
             <section className="bg-white rounded-xl border border-[#E5E8F1] p-5 shadow-sm">
@@ -460,6 +454,14 @@ export default function StaffCostReportPage() {
             </section>
           </div>
         ) : null}
+        
+        <Dialog
+          isOpen={dialog.isOpen}
+          title={dialog.title}
+          message={dialog.message}
+          type={dialog.type}
+          onClose={() => setDialog({ ...dialog, isOpen: false })}
+        />
       </main>
     </div>
   );

@@ -10,6 +10,7 @@ const navItems = [
   { key: 'tenant-payments', label: 'Tenant Payments', path: '/admin/tenant-payments', icon: '₨' },
   { key: 'cost-reports', label: 'Cost Report Approvals', path: '/admin-dashboard#cost-report-approvals', icon: '✓' },
   { key: 'staff-approvals', label: 'Staff Approvals', path: '/admin-dashboard#staff-approvals', icon: '👥' },
+  { key: 'staff-details', label: 'Staff Details', path: '/admin/staff-details', icon: '📋' },
   { key: 'profile', label: 'Profile', path: '/admin/profile', icon: '⚙' },
 ];
 

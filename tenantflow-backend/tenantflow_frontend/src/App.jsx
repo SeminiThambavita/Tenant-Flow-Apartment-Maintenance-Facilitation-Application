@@ -24,10 +24,15 @@ import AdminProperties from './pages/AdminProperties';
 import AdminProfile from './pages/AdminProfile';
 import AdminTenantPayments from './pages/AdminTenantPayments';
 import StaffApprovalDetail from './pages/StaffApprovalDetail';
+import AdminStaffList from './pages/AdminStaffList';
+import AdminStaffDetailView from './pages/AdminStaffDetailView';
 import Payment from './pages/Payment';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancel from './pages/PaymentCancel';
 import PaymentReceiptPage from './pages/PaymentReceiptPage';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
+import ContactUs from './pages/ContactUs';
 import Footer from './components/Footer';
 import './App.css';
 
@@ -59,6 +64,9 @@ function AppContent() {
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/cancel" element={<PaymentCancel />} />
           <Route path="/payment-history" element={<PaymentReceiptPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
+          <Route path="/contact" element={<ContactUs />} />
           <Route path="/report-issue" element={<ReportIssue />} />
           <Route path="/report-issue/review" element={<ReviewIssue />} />
           <Route path="/profile" element={<Profile />} />
@@ -73,6 +81,8 @@ function AppContent() {
           <Route path="/admin/in-progress-repairs" element={<AdminInProgressRepairs />} />
           <Route path="/admin/in-progress-repairs/:id" element={<AdminRepairDetail />} />
           <Route path="/admin/tenant-payments" element={<AdminTenantPayments />} />
+          <Route path="/admin/staff-details" element={<AdminStaffList />} />
+          <Route path="/admin/staff-details/:id" element={<AdminStaffDetailView />} />
           <Route path="/admin/cost-reports/:id" element={<AdminCostReportDetail />} />
           <Route path="/admin/staff-assignments" element={<AdminTaskAssignment />} />
           <Route path="/admin/properties" element={<AdminProperties />} />

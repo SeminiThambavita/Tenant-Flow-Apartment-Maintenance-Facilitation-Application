@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../api';
 import Logo from '../components/Logo';
 import BankNameInput from '../components/BankNameInput';
 import { validateStaffRegistration } from '../utils/staffRegisterValidation';
+import Dialog from '../components/Dialog';
 
 function FieldError({ message }) {
   if (!message) return null;
@@ -44,6 +45,7 @@ function StaffRegister() {
   });
 
   const [newSkill, setNewSkill] = useState('');
+  const [dialog, setDialog] = useState({ isOpen: false, title: '', message: '', type: 'success', buttons: [] });
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -144,8 +146,18 @@ function StaffRegister() {
       }
 
       await authAPI.staffRegister(payload);
-      alert('Staff registration submitted successfully. Please wait for admin approval.');
-      navigate('/login', { state: { role: 'staff' } });
+      setDialog({
+        isOpen: true,
+        title: 'Registration Successful!',
+        message: 'Staff registration submitted successfully. Please wait for admin approval.',
+        type: 'success',
+        buttons: [
+          {
+            label: 'Go to Login',
+            onClick: () => navigate('/role-selection')
+          }
+        ]
+      });
     } catch (err) {
       setError(err.response?.data?.message || 'Staff registration failed. Please try again.');
     } finally {
@@ -647,8 +659,8 @@ function StaffRegister() {
               />
               <span className="text-sm text-gray-700">
                 I have read and accept the{' '}
-                <a href="#" className="text-blue-600 hover:underline">Terms of Service</a> and{' '}
-                <a href="#" className="text-blue-600 hover:underline">Privacy Policy</a>.
+                <Link to="/terms-of-service" className="text-blue-600 hover:underline">Terms of Service</Link> and{' '}
+                <Link to="/privacy-policy" className="text-blue-600 hover:underline">Privacy Policy</Link>.
               </span>
             </label>
 
@@ -694,6 +706,15 @@ function StaffRegister() {
           </p>
         </div>
       </form>
+      
+      <Dialog
+        isOpen={dialog.isOpen}
+        title={dialog.title}
+        message={dialog.message}
+        type={dialog.type}
+        buttons={dialog.buttons}
+        onClose={() => setDialog({ ...dialog, isOpen: false })}
+      />
     </div>
   );
 }

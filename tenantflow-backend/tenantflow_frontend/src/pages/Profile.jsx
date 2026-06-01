@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../api';
 import Logo from '../components/Logo';
 import { buildFileUrl, getUserProfileImage } from '../utils/profileImage';
+import Dialog from '../components/Dialog';
 
 const getTenantResidence = (user) => ({
   buildingName: user?.building?.name || user?.building?.buildingName || user?.buildingName || '',
@@ -36,7 +37,7 @@ export default function Profile() {
   const [profileError, setProfileError] = useState('');
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
-  const [profileSuccess, setProfileSuccess] = useState('');
+  const [dialog, setDialog] = useState({ isOpen: false, title: '', message: '', type: 'success' });
   const [profileImage, setProfileImage] = useState('');
   const [residenceInfo, setResidenceInfo] = useState({
     buildingName: '',
@@ -95,6 +96,7 @@ export default function Profile() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('role');
+    localStorage.removeItem('userId');
     navigate('/role-selection');
   };
 
@@ -115,7 +117,7 @@ export default function Profile() {
   const handleProfileSubmit = (event) => {
     event.preventDefault();
     setProfileError('');
-    setProfileSuccess('');
+    setDialog({ ...dialog, isOpen: false });
 
     const saveProfile = async () => {
       setProfileSaving(true);
@@ -153,7 +155,7 @@ export default function Profile() {
           setResidenceInfo(tenantResidence);
         }
 
-        setProfileSuccess('Profile updated successfully.');
+        setDialog({ isOpen: true, title: 'Success', message: 'Profile updated successfully.', type: 'success' });
       } catch (error) {
         setProfileError(error.response?.data?.message || 'Failed to update profile.');
       } finally {
@@ -178,7 +180,7 @@ export default function Profile() {
         newPassword: passwordForm.newPassword,
       });
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      setProfileSuccess('Password updated successfully.');
+      setDialog({ isOpen: true, title: 'Success', message: 'Password updated successfully.', type: 'success' });
     } catch (error) {
       setPasswordError(error.response?.data?.message || 'Failed to update password.');
     }
@@ -206,11 +208,13 @@ export default function Profile() {
               {profileError}
             </div>
           )}
-          {profileSuccess && (
-            <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded text-xs">
-              {profileSuccess}
-            </div>
-          )}
+          <Dialog
+            isOpen={dialog.isOpen}
+            title={dialog.title}
+            message={dialog.message}
+            type={dialog.type}
+            onClose={() => setDialog({ ...dialog, isOpen: false })}
+          />
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">
               {profileImage ? (

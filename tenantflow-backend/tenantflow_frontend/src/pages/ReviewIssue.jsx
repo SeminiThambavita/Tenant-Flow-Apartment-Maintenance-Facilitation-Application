@@ -4,6 +4,7 @@ import { authAPI, issueAPI } from '../api';
 import Logo from '../components/Logo';
 import { addNotification } from '../utils/notifications';
 import { buildFileUrl, getUserProfileImage } from '../utils/profileImage';
+import Dialog from '../components/Dialog';
 
 const URGENCY_LABELS = {
   urgent: { label: 'High Priority', tag: 'URGENT', color: 'text-orange-600 bg-orange-50 border-orange-200' },
@@ -29,7 +30,7 @@ export default function ReviewIssue() {
   const [userName, setUserName] = useState('Tenant');
   const [userInitials, setUserInitials] = useState('T');
   const [profileImage, setProfileImage] = useState('');
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [dialog, setDialog] = useState({ isOpen: false, title: '', message: '', type: 'success', buttons: [] });
   const [mediaPreviews, setMediaPreviews] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -177,7 +178,18 @@ export default function ReviewIssue() {
         createdAt: createdIssue?.createdAt
       });
       localStorage.removeItem(STORAGE_KEY);
-      setShowSuccess(true);
+      setDialog({
+        isOpen: true,
+        title: 'Request Submitted Successfully!',
+        message: 'Your request has been logged and assigned to our maintenance team.',
+        type: 'success',
+        buttons: [
+          {
+            label: 'Go to Dashboard',
+            onClick: handleGoDashboard
+          }
+        ]
+      });
     } catch (error) {
       const errorMsg = error.response?.data?.message || error.message || 'Failed to submit the request. Please try again.';
       console.error('Issue submission error:', error);
@@ -363,26 +375,14 @@ export default function ReviewIssue() {
         </div>
       </div>
 
-      {showSuccess && (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-[360px] px-6 py-7 text-center">
-            <div className="w-14 h-14 rounded-full border-4 border-emerald-100 bg-emerald-50 flex items-center justify-center mx-auto">
-              <span className="text-emerald-600 text-lg font-bold">OK</span>
-            </div>
-            <h2 className="text-lg font-bold text-slate-900 mt-4">Request Submitted Successfully!</h2>
-            <p className="text-xs text-slate-500 mt-2">
-              Your request has been logged and assigned to our maintenance team.
-            </p>
-            <button
-              type="button"
-              onClick={handleGoDashboard}
-              className="mt-5 w-full px-4 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg"
-            >
-              Go to Dashboard
-            </button>
-          </div>
-        </div>
-      )}
+      <Dialog
+        isOpen={dialog.isOpen}
+        title={dialog.title}
+        message={dialog.message}
+        type={dialog.type}
+        buttons={dialog.buttons}
+        onClose={() => setDialog({ ...dialog, isOpen: false })}
+      />
     </div>
   );
 }

@@ -141,14 +141,14 @@ export default function Login() {
         {/* Footer Links */}
         <div className="mt-12 text-center text-gray-500 text-xs space-y-3">
           <div>
-            <a href="#" className="text-gray-600 hover:text-gray-900">Forgot your password?</a>
+            <Link to="/contact" className="text-gray-600 hover:text-gray-900">Forgot your password?</Link>
             <span className="mx-2">•</span>
-            <a href="#" className="text-gray-600 hover:text-gray-900">Contact Support</a>
+            <Link to="/contact" className="text-gray-600 hover:text-gray-900">Contact Support</Link>
           </div>
           <div>
-            <a href="#" className="text-gray-600 hover:text-gray-900">Terms of Service</a>
+            <Link to="/terms-of-service" className="text-gray-600 hover:text-gray-900">Terms of Service</Link>
             <span className="mx-1">|</span>
-            <a href="#" className="text-gray-600 hover:text-gray-900">Privacy Policy</a>
+            <Link to="/privacy-policy" className="text-gray-600 hover:text-gray-900">Privacy Policy</Link>
           </div>
         </div>
       </div>

@@ -145,7 +145,7 @@ export default function Register() {
         buttons: [
           {
             label: 'Go to Login',
-            onClick: () => navigate('/login', { state: { role: 'tenant' } }),
+            onClick: () => navigate('/role-selection'),
             closeDialog: true
           }
         ]

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../api';
 import AdminSidebar from '../components/AdminSidebar';
 import { buildFileUrl, getUserProfileImage } from '../utils/profileImage';
+import Dialog from '../components/Dialog';
 
 export default function AdminProfile() {
   const navigate = useNavigate();
@@ -18,7 +19,7 @@ export default function AdminProfile() {
   const [profileError, setProfileError] = useState('');
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
-  const [profileSuccess, setProfileSuccess] = useState('');
+  const [dialog, setDialog] = useState({ isOpen: false, title: '', message: '', type: 'success' });
   const [profileImage, setProfileImage] = useState('');
 
   useEffect(() => {
@@ -58,6 +59,7 @@ export default function AdminProfile() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('role');
+    localStorage.removeItem('userId');
     navigate('/role-selection');
   };
 
@@ -74,7 +76,7 @@ export default function AdminProfile() {
   const handleProfileSubmit = async (event) => {
     event.preventDefault();
     setProfileError('');
-    setProfileSuccess('');
+    setDialog({ ...dialog, isOpen: false });
     setProfileSaving(true);
     try {
       const response = await authAPI.updateProfile(profileForm);
@@ -87,7 +89,7 @@ export default function AdminProfile() {
         });
         setProfileImage(getUserProfileImage(user));
       }
-      setProfileSuccess('Profile updated successfully.');
+      setDialog({ isOpen: true, title: 'Success', message: 'Profile updated successfully.', type: 'success' });
     } catch (error) {
       setProfileError(error.response?.data?.message || 'Failed to update profile.');
     } finally {
@@ -108,7 +110,7 @@ export default function AdminProfile() {
         newPassword: passwordForm.newPassword,
       });
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      setProfileSuccess('Password updated successfully.');
+      setDialog({ isOpen: true, title: 'Success', message: 'Password updated successfully.', type: 'success' });
     } catch (error) {
       setPasswordError(error.response?.data?.message || 'Failed to update password.');
     }
@@ -148,9 +150,13 @@ export default function AdminProfile() {
           {profileError && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded text-xs">{profileError}</div>
           )}
-          {profileSuccess && (
-            <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded text-xs">{profileSuccess}</div>
-          )}
+          <Dialog
+            isOpen={dialog.isOpen}
+            title={dialog.title}
+            message={dialog.message}
+            type={dialog.type}
+            onClose={() => setDialog({ ...dialog, isOpen: false })}
+          />
 
           <div className="flex gap-3 mb-6">
             <button

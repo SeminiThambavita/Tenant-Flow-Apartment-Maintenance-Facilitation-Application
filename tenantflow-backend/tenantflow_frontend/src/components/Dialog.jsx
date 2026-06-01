@@ -93,7 +93,7 @@ export default function Dialog({
       {/* Backdrop */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-200"
+          className="fixed inset-0 bg-slate-900/50 z-40 transition-opacity duration-200"
           onClick={onClose}
         />
       )}

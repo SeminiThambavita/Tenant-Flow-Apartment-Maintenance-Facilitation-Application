@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import Logo from '../components/Logo';
 import backgroundImage from '../assets/background.png';
 
@@ -64,9 +65,9 @@ function Home() {
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <p className="tracking-wider">© 2024 TENANTFLOW. ALL RIGHTS RESERVED.</p>
           <div className="flex gap-8 tracking-wider">
-            <a href="#" className="hover:underline">PRIVACY</a>
-            <a href="#" className="hover:underline">TERMS</a>
-            <a href="#" className="hover:underline">CONTACT</a>
+            <Link to="/privacy-policy" className="hover:underline">PRIVACY</Link>
+            <Link to="/terms-of-service" className="hover:underline">TERMS</Link>
+            <Link to="/contact" className="hover:underline">CONTACT</Link>
           </div>
         </div>
       </footer>

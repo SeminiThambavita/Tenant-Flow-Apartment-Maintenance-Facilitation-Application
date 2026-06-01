@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { authAPI } from '../api';
 import AdminSidebar from '../components/AdminSidebar';
+import Dialog from '../components/Dialog';
 
 export default function StaffApprovalDetail() {
   const navigate = useNavigate();
@@ -11,6 +12,7 @@ export default function StaffApprovalDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState(null);
+  const [dialog, setDialog] = useState({ isOpen: false, title: '', message: '', type: 'success', buttons: [] });
   const uploadBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
@@ -41,7 +43,18 @@ export default function StaffApprovalDetail() {
       setActionLoading(status);
       try {
         await authAPI.updateStaffStatus(staff._id, status);
-        setTimeout(() => navigate('/admin-dashboard'), 500);
+        setDialog({
+          isOpen: true,
+          title: status === 'approved' ? 'Staff Approved' : 'Staff Rejected',
+          message: `The staff member has been successfully ${status}.`,
+          type: 'success',
+          buttons: [
+            {
+              label: 'Back to Dashboard',
+              onClick: () => navigate('/admin-dashboard')
+            }
+          ]
+        });
       } catch (err) {
         setError(err.response?.data?.message || `Failed to ${status} staff.`);
       } finally {
@@ -294,6 +307,15 @@ export default function StaffApprovalDetail() {
             </div>
           </div>
         ) : null}
+        
+        <Dialog
+          isOpen={dialog.isOpen}
+          title={dialog.title}
+          message={dialog.message}
+          type={dialog.type}
+          buttons={dialog.buttons}
+          onClose={() => setDialog({ ...dialog, isOpen: false })}
+        />
       </main>
     </div>
   );

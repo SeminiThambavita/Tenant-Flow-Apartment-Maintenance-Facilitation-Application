@@ -1,4 +1,5 @@
 import Logo from './Logo';
+import { Link } from 'react-router-dom';
 
 const roleQuickLinks = {
   tenant: [
@@ -49,7 +50,7 @@ export default function Footer({ hideQuickLinks = false, role = 'tenant' }) {
             <p className="text-xs font-semibold text-slate-900">Support</p>
             <ul className="mt-3 space-y-2 text-xs text-slate-600">
               <li>Emergency Line: 0112-XXX-XXX</li>
-              <li>support@tenantflow.lk</li>
+              <li><a href="mailto:support@tenantflow.lk" className="hover:text-slate-900">support@tenantflow.lk</a></li>
               <li>Mon to Sun, 24/7</li>
             </ul>
           </div>
@@ -57,8 +58,8 @@ export default function Footer({ hideQuickLinks = false, role = 'tenant' }) {
           <div>
             <p className="text-xs font-semibold text-slate-900">Legal</p>
             <ul className="mt-3 space-y-2 text-xs text-slate-600">
-              <li>Terms of Service</li>
-              <li>Privacy Policy</li>
+              <li><Link className="hover:text-slate-900" to="/terms-of-service">Terms of Service</Link></li>
+              <li><Link className="hover:text-slate-900" to="/privacy-policy">Privacy Policy</Link></li>
             </ul>
           </div>
         </div>
