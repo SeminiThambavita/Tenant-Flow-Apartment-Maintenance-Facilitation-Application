@@ -366,13 +366,13 @@ export default function AdminTaskAssignment() {
         </div>
       </main>
 
-      <div className="fixed left-[180px] right-0 bottom-0 bg-white border-t border-[#E1E5F2] px-6 py-4 flex items-center justify-between z-40">
+      <div className="fixed left-0 lg:left-[180px] right-0 bottom-0 bg-white border-t border-[#E1E5F2] px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 z-40">
         <div className="text-[12px] text-[#596080]">
           <p><span className="font-semibold text-[#2A2E3F]">Selected Task:</span> {selectedTaskIds.length} task(s)</p>
           <p><span className="font-semibold text-[#2A2E3F]">Assigned To:</span> {selectedStaff ? selectedStaff.name : 'No staff selected'}</p>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 self-end sm:self-auto">
           <button onClick={clearSelection} className="text-[12px] text-[#5D68A7] font-semibold">Cancel Selection</button>
           <button
             onClick={handleAssign}

@@ -522,10 +522,10 @@ export default function TenantDashboard() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-slate-100">
       {/* Top Navigation */}
       <nav className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-8 py-3 flex justify-between items-center">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center gap-4">
           <Logo size={32} textClassName="text-lg font-bold text-gray-900" />
           <div className="flex items-center gap-6">
             <div className="relative">
@@ -578,10 +578,11 @@ export default function TenantDashboard() {
         </div>
       </nav>
 
-      <div className="flex justify-center">
-        {/* Sidebar */}
-        <div className="w-56 bg-white shadow-sm min-h-screen sticky top-20">
-          <div className="p-4 space-y-1">
+      <div className="max-w-[1440px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] gap-4 sm:gap-6 items-start">
+          {/* Sidebar */}
+          <aside className="bg-white shadow-sm border border-slate-200 rounded-2xl lg:sticky lg:top-[84px]">
+            <div className="p-4 space-y-1">
             <button
               onClick={() => setActiveMenu('dashboard')}
               className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition ${
@@ -630,28 +631,28 @@ export default function TenantDashboard() {
               🚪 Logout
             </button>
           </div>
-        </div>
+          </aside>
 
-        {/* Main Content */}
-        <div className="flex-1 max-w-6xl p-3">
+          {/* Main Content */}
+          <main className="min-w-0">
           {activeMenu === 'dashboard' && (
             <>
               {/* Header Section */}
-              <div className="flex justify-between items-start mb-3">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
                   <p className="text-gray-600 mt-1 text-sm">Welcome back, <span className="font-semibold text-gray-900">{userName}</span> 👋</p>
                 </div>
                 <button
                   onClick={() => navigate('/report-issue')}
-                  className="bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-gray-900 font-bold py-2 px-4 rounded-lg transition shadow-md hover:shadow-lg text-sm"
+                  className="bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-gray-900 font-bold py-2 px-4 rounded-lg transition shadow-md hover:shadow-lg text-sm self-start"
                 >
                   + Report New Issue
                 </button>
               </div>
 
               {/* Stats Cards */}
-              <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
             <button
               type="button"
               onClick={() => handleFilterChange('new')}
@@ -704,9 +705,9 @@ export default function TenantDashboard() {
             </button>
           </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
             {/* Active Requests */}
-            <div className="col-span-2 space-y-4">
+            <div className="xl:col-span-2 space-y-4">
               <div className="bg-white rounded-xl shadow-sm p-4 border border-slate-100">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -786,7 +787,7 @@ export default function TenantDashboard() {
                 {requestHistory.length === 0 ? (
                   <p className="text-xs text-slate-500">No completed requests yet.</p>
                 ) : (
-                  <div className="grid grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                     {requestHistory.map((req) => (
                       <button
                         key={req.id}
@@ -1057,6 +1058,7 @@ export default function TenantDashboard() {
               </div>
             </>
           )}
+          </main>
         </div>
       </div>
 
