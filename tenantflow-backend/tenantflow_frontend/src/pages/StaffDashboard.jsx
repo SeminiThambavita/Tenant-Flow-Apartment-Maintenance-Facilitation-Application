@@ -200,6 +200,12 @@ export default function StaffDashboard() {
                             {task.urgency.charAt(0).toUpperCase() + task.urgency.slice(1)}
                           </span>
                         )}
+                        {task.scheduledStartDate && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                            📅 Start: {new Date(task.scheduledStartDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            {task.scheduledStartTime && ` ${task.scheduledStartTime}`}
+                          </span>
+                        )}
                       </div>
 
                       {task.currentCostReport && typeof task.currentCostReport === 'object' && (

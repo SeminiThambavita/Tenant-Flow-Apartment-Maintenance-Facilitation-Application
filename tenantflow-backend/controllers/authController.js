@@ -546,13 +546,31 @@ export const getPendingStaffById = async (req, res) => {
   }
 };
 
+// @desc    Get full details of a specific staff member (regardless of status)
+// @route   GET /auth/staff/details/:id
+// @access  Private (Admin)
+export const getStaffById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const staff = await User.findOne({ _id: id, role: "staff" }).select("-password");
+    if (!staff) {
+      return res.status(404).json({ message: "Staff user not found" });
+    }
+
+    return res.json({ staff });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch staff details", error: error.message });
+  }
+};
+
 // @desc    Get approved staff members
 // @route   GET /auth/staff/approved
 // @access  Private (Admin)
 export const getApprovedStaff = async (req, res) => {
   try {
     const approvedStaff = await User.find({ role: "staff", status: "approved" })
-      .select("name email phone staffType primaryDepartment workStatus maxJobsPerDay")
+      .select("-password")
       .sort({ createdAt: -1 });
 
     return res.json({

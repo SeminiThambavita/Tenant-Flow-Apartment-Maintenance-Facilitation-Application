@@ -10,7 +10,8 @@ import {
   getPendingStaffById,
   getApprovedStaff,
   getTenants,
-  updateStaffStatus
+  updateStaffStatus,
+  getStaffById
 } from "../controllers/authController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import roleMiddleware from "../middleware/roleMiddleware.js";
@@ -79,6 +80,7 @@ router.put("/password", authMiddleware, changePassword);
 router.get("/staff/pending", authMiddleware, roleMiddleware(["admin"]), getPendingStaff);
 router.get("/staff/approved", authMiddleware, roleMiddleware(["admin"]), getApprovedStaff);
 router.get("/tenants", authMiddleware, roleMiddleware(["admin"]), getTenants);
+router.get("/staff/details/:id", authMiddleware, roleMiddleware(["admin"]), getStaffById);
 router.get("/staff/:id", authMiddleware, roleMiddleware(["admin"]), getPendingStaffById);
 router.put("/staff/:id/status", authMiddleware, roleMiddleware(["admin"]), updateStaffStatus);
 

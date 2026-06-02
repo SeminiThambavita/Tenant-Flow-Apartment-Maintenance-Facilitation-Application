@@ -20,7 +20,7 @@ export default function ProfileDropdown({ userName = 'User', userInitials = 'U',
     if (role === 'tenant') {
       navigate('/profile');
     } else if (role === 'admin') {
-      navigate('/admin-profile');
+      navigate('/admin/profile');
     } else if (role === 'staff') {
       navigate('/staff-profile');
     }

@@ -325,7 +325,8 @@ export const seedBuildings = async (req, res) => {
             units: [
               { unitNumber: "101", occupied: false },
               { unitNumber: "102", occupied: false },
-              { unitNumber: "103", occupied: false }
+              { unitNumber: "103", occupied: false },
+              { unitNumber: "104", occupied: false }
             ]
           },
           {

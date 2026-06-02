@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { authAPI, issueAPI } from '../api';
 import AdminSidebar from '../components/AdminSidebar';
+import ProfileDropdown from '../components/ProfileDropdown';
 import usePolling from '../hooks/usePolling';
 import { formatStatusLabel, getStatusBadgeTheme } from '../utils/issueStatus';
+import { getUserProfileImage } from '../utils/profileImage';
 
 const STATUS_FILTERS = [
   'all',
@@ -24,6 +26,7 @@ export default function AdminInProgressRepairs() {
   const location = useLocation();
   const role = localStorage.getItem('role');
   const [userName, setUserName] = useState('Property Manager');
+  const [userProfileImage, setUserProfileImage] = useState('');
   const [repairs, setRepairs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -48,6 +51,7 @@ export default function AdminInProgressRepairs() {
         const profileResponse = await authAPI.getProfile();
         if (profileResponse?.data?.user?.name) {
           setUserName(profileResponse.data.user.name);
+          setUserProfileImage(getUserProfileImage(profileResponse.data.user));
         }
 
         const issueResponse = await issueAPI.getAll({ status: 'all' });
@@ -184,10 +188,11 @@ export default function AdminInProgressRepairs() {
                   )}
                 </div>
               )}
-              <div className="w-8 h-8 rounded-full border-2 border-[#3346F2] bg-[#F6D4A7] flex items-center justify-center text-[11px] font-bold text-[#2E3348]">
-                {(userName || 'P').charAt(0).toUpperCase()}
-              </div>
-            </div>
+              <ProfileDropdown
+                userName={userName}
+                userInitials={(userName || 'P').charAt(0).toUpperCase()}
+                profileImage={userProfileImage}
+              />            </div>
           </div>
 
           <div className="flex gap-2 mb-3">
@@ -263,7 +268,7 @@ export default function AdminInProgressRepairs() {
                     <span>{repair.assignedTo?.name || 'Unassigned'}</span>
                   </div>
                   <span className="text-[#5D68A7]">{[getBuildingLabel(repair.building), repair.unit || repair.unitNumber].filter(Boolean).join(' - ') || '-'}</span>
-                  <span className="text-[#5D68A7]">{toDateTime(repair.updatedAt || repair.createdAt)}</span>
+                  <span className="text-[10px] text-[#5D68A7]">{toDateTime(repair.scheduledStartDate) !== '-' ? toDateTime(repair.scheduledStartDate) + (repair.scheduledStartTime ? ` ${repair.scheduledStartTime}` : '') : '—'}</span>
                   <div className="flex items-center gap-3">
                     <span className={`inline-flex items-center justify-center min-w-[8.5rem] px-3.5 py-1 rounded-full whitespace-nowrap text-[10px] font-bold ${getStatusBadgeTheme(repair.status, 'pill').className}`}>
                       {getStatusBadgeTheme(repair.status, 'pill').text}

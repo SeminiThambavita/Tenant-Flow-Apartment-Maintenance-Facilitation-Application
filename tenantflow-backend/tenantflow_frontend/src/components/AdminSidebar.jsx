@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Logo from './Logo';
 import NotificationBell from './NotificationBell';
@@ -14,18 +15,79 @@ const navItems = [
   { key: 'profile', label: 'Profile', path: '/admin/profile', icon: '⚙' },
 ];
 
+const MIN_WIDTH = 60;
+const MAX_WIDTH = 320;
+const DEFAULT_WIDTH = 180;
+
 export default function AdminSidebar({ active = 'dashboard', profileName = 'Property Manager' }) {
   const navigate = useNavigate();
+  const [width, setWidth] = useState(() => {
+    const saved = localStorage.getItem('adminSidebarWidth');
+    return saved ? Number(saved) : DEFAULT_WIDTH;
+  });
+  const collapsed = width <= 80;
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const startWidth = useRef(width);
+
+  const onMouseMove = useCallback((e) => {
+    if (!isDragging.current) return;
+    const delta = e.clientX - startX.current;
+    const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth.current + delta));
+    setWidth(newWidth);
+  }, []);
+
+  const onMouseUp = useCallback(() => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    localStorage.setItem('adminSidebarWidth', String(width));
+  }, [width]);
+
+  useEffect(() => {
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [onMouseMove, onMouseUp]);
+
+  const startDrag = (e) => {
+    isDragging.current = true;
+    startX.current = e.clientX;
+    startWidth.current = width;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  };
+
+  // Persist after mouse up
+  useEffect(() => {
+    localStorage.setItem('adminSidebarWidth', String(width));
+  }, [width]);
 
   return (
-    <aside className="w-[180px] bg-white border-r border-[#E4E7F0] flex flex-col justify-between shrink-0">
-      <div>
-        <div className="px-4 py-5 border-b border-[#EEF0F6]">
-          <Logo size={28} textClassName="text-[14px] font-semibold text-[#22263A] leading-4" />
-          <p className="text-[10px] text-[#6B7390] leading-3 mt-1">Management Portal</p>
+    <aside
+      className="relative bg-white border-r border-[#E4E7F0] flex flex-col justify-between shrink-0 transition-none"
+      style={{ width }}
+    >
+      <div className="overflow-hidden">
+        <div className="px-3 py-4 border-b border-[#EEF0F6]">
+          {collapsed ? (
+            <div className="flex justify-center">
+              <Logo size={22} textClassName="hidden" />
+            </div>
+          ) : (
+            <>
+              <Logo size={26} textClassName="text-[13px] font-semibold text-[#22263A] leading-4" />
+              <p className="text-[10px] text-[#6B7390] leading-3 mt-1">Management Portal</p>
+            </>
+          )}
         </div>
 
-        <nav className="px-3 py-4 space-y-1 text-[12px]">
+        <nav className="px-2 py-3 space-y-0.5 text-[12px]">
           {navItems.map((item) => {
             const isActive = active === item.key;
             return (
@@ -33,14 +95,13 @@ export default function AdminSidebar({ active = 'dashboard', profileName = 'Prop
                 key={item.key}
                 type="button"
                 onClick={() => navigate(item.path)}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded-md ${
-                  isActive
-                    ? 'bg-[#ECEEFF] text-[#3346F2] font-medium'
-                    : 'text-[#2A2E3F] hover:bg-[#F6F7FB]'
-                }`}
+                title={collapsed ? item.label : undefined}
+                className={`w-full flex items-center gap-2 px-2 py-2 rounded-md transition ${
+                  isActive ? 'bg-[#ECEEFF] text-[#3346F2] font-medium' : 'text-[#2A2E3F] hover:bg-[#F6F7FB]'
+                } ${collapsed ? 'justify-center' : ''}`}
               >
-                <span className="w-5 text-center shrink-0">{item.icon}</span>
-                <span className="truncate">{item.label}</span>
+                <span className="w-5 text-center shrink-0 text-[14px]">{item.icon}</span>
+                {!collapsed && <span className="truncate">{item.label}</span>}
               </button>
             );
           })}
@@ -50,16 +111,28 @@ export default function AdminSidebar({ active = 'dashboard', profileName = 'Prop
       <button
         type="button"
         onClick={() => navigate('/admin/profile')}
-        className="px-4 py-4 border-t border-[#EEF0F6] text-[11px] text-left hover:bg-[#F6F7FB] w-full flex items-center justify-between gap-2"
+        title={collapsed ? `${profileName} — Profile & settings` : undefined}
+        className={`px-3 py-3 border-t border-[#EEF0F6] text-[11px] text-left hover:bg-[#F6F7FB] w-full flex items-center gap-2 ${collapsed ? 'justify-center' : 'justify-between'}`}
       >
-        <div>
-          <p className="font-semibold text-[#1F2233] truncate">{profileName}</p>
-          <p className="text-[#7681A8]">Profile &amp; settings</p>
-        </div>
+        {!collapsed && (
+          <div className="min-w-0">
+            <p className="font-semibold text-[#1F2233] truncate">{profileName}</p>
+            <p className="text-[#7681A8]">Profile &amp; settings</p>
+          </div>
+        )}
         <div className="shrink-0">
           <NotificationBell />
         </div>
       </button>
+
+      {/* Drag handle */}
+      <div
+        onMouseDown={startDrag}
+        className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-[#3346F2]/20 transition-colors group z-10"
+        title="Drag to resize"
+      >
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-full bg-[#D0D4E8] group-hover:bg-[#3346F2] transition-colors" />
+      </div>
     </aside>
   );
 }
