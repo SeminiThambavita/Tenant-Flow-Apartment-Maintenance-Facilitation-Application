@@ -13,6 +13,7 @@ import paymentRoutes from "./routes/paymentRoutes.js";
 import invoiceRoutes from "./routes/invoiceRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
 import buildingRoutes from "./routes/buildingRoutes.js";
+import { startReminderScheduler } from "./services/reminderScheduler.js";
 
 const app = express();
 
@@ -45,4 +46,5 @@ const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  startReminderScheduler();
 });

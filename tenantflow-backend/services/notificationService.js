@@ -279,6 +279,12 @@ export const notifyStatusChanged = async (issue, previousStatus, newStatus, mana
         getStaffMsg: () => "You have started working on this task",
         getManagerMsg: (staff) => `${staff.name} started working on the task`
       },
+      "tenant confirmed": {
+        title: "Tenant Confirmed Completion",
+        getTenantMsg: () => "You have confirmed the task is complete. The staff member can now finalise it.",
+        getStaffMsg: () => "The tenant has confirmed your work is complete. You can now mark the task as completed.",
+        getManagerMsg: (staff) => `The tenant confirmed that ${staff.name} has completed the task`
+      },
       "completed": {
         title: "Task Completed",
         getTenantMsg: (staff) => `${staff.name} has completed your issue resolution`,
@@ -330,6 +336,66 @@ export const notifyStatusChanged = async (issue, previousStatus, newStatus, mana
 
   } catch (error) {
     console.error("Error notifying status changed:", error);
+  }
+};
+
+/**
+ * Remind staff and manager that scheduled start date has passed and work hasn't started
+ */
+export const notifyStartDateOverdue = async (issue) => {
+  try {
+    const populatedIssue = await Issue.findById(issue._id)
+      .populate("assignedTo", "name email staffType")
+      .populate("propertyManager", "name email")
+      .populate("building", "name")
+      .exec();
+
+    if (!populatedIssue) return;
+
+    const staffMember = populatedIssue.assignedTo;
+    const manager = populatedIssue.propertyManager;
+    const buildingName = populatedIssue.building?.name || "Building";
+    const scheduledDate = populatedIssue.scheduledStartDate
+      ? new Date(populatedIssue.scheduledStartDate).toLocaleDateString("en-GB", {
+          day: "2-digit", month: "short", year: "numeric"
+        })
+      : "the scheduled date";
+    const timeStr = populatedIssue.scheduledStartTime
+      ? ` at ${populatedIssue.scheduledStartTime}`
+      : "";
+
+    const notificationData = {
+      type: "task_status_changed",
+      issue: issue._id,
+      data: {
+        issueType: populatedIssue.issueType,
+        unit: populatedIssue.unit,
+        building: buildingName,
+        scheduledStartDate: scheduledDate
+      }
+    };
+
+    // Notify the assigned staff member
+    if (staffMember?._id) {
+      await createNotification(staffMember._id, {
+        ...notificationData,
+        title: "Reminder: Task Not Yet Started",
+        message: `Your ${populatedIssue.issueType} task at ${buildingName}, Unit ${populatedIssue.unit} was scheduled to start on ${scheduledDate}${timeStr}. Please begin work or contact your manager.`,
+        actionUrl: `/staff/tasks`
+      });
+    }
+
+    // Notify the property manager
+    if (manager?._id) {
+      await createNotification(manager._id, {
+        ...notificationData,
+        title: "Alert: Task Start Date Passed",
+        message: `${staffMember?.name || "The assigned staff"} has not started the ${populatedIssue.issueType} task at ${buildingName}, Unit ${populatedIssue.unit}. Scheduled start was ${scheduledDate}${timeStr}.`,
+        actionUrl: `/admin/in-progress-repairs`
+      });
+    }
+  } catch (error) {
+    console.error("Error sending start date overdue notification:", error);
   }
 };
 
