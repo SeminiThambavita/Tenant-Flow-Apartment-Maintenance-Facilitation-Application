@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { issueAPI } from '../api';
+import { authAPI, issueAPI } from '../api';
 import AdminSidebar from '../components/AdminSidebar';
+import ProfileDropdown from '../components/ProfileDropdown';
 import IssueMediaGallery from '../components/IssueMediaGallery';
 import usePolling from '../hooks/usePolling';
 import { broadcastStatusRefresh } from '../utils/statusRefresh';
 import { formatStatusLabel, getStatusBadgeTheme, normalizeStatus } from '../utils/issueStatus';
+import { getUserProfileImage } from '../utils/profileImage';
 
 const getBuildingLabel = (value) => {
   if (!value) return '—';
@@ -35,6 +37,7 @@ const REPAIR_STATUS_FLOW = [
   { value: 'new', label: 'New', dot: 'bg-blue-600', bar: 'bg-blue-500' },
   { value: 'assigned', label: 'Assigned', dot: 'bg-blue-600', bar: 'bg-blue-500' },
   { value: 'in progress', label: 'In Progress', dot: 'bg-emerald-600', bar: 'bg-emerald-500' },
+  { value: 'tenant confirmed', label: 'Tenant Confirmed', dot: 'bg-purple-600', bar: 'bg-purple-500' },
   { value: 'completed', label: 'Completed', dot: 'bg-amber-500', bar: 'bg-amber-400' },
   { value: 'cost report submitted', label: 'Cost Report Submitted', dot: 'bg-violet-600', bar: 'bg-violet-500' },
   { value: 'invoice issued', label: 'Invoice Issued', dot: 'bg-sky-600', bar: 'bg-sky-500' },
@@ -77,12 +80,21 @@ export default function AdminRepairDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [updating, setUpdating] = useState(false);
+  const [profileName, setProfileName] = useState('Property Manager');
+  const [profileImage, setProfileImage] = useState('');
+  const [unassigning, setUnassigning] = useState(false);
 
   const loadIssue = useCallback(async () => {
     if (!id || role !== 'admin') return;
     try {
-      const response = await issueAPI.getById(id);
-      setIssue(response?.data?.issue || null);
+      const [issueResponse, profileResponse] = await Promise.all([
+        issueAPI.getById(id),
+        authAPI.getProfile()
+      ]);
+      setIssue(issueResponse?.data?.issue || null);
+      const user = profileResponse?.data?.user || {};
+      setProfileName(user.name || 'Property Manager');
+      setProfileImage(getUserProfileImage(user));
       setError('');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load task details.');
@@ -120,9 +132,27 @@ export default function AdminRepairDetail() {
     }
   };
 
+  const handleUnassign = async () => {
+    if (!issue?._id) return;
+    const confirmed = window.confirm(
+      `Unassign ${issue.assignedTo?.name || 'this staff member'} from this task? It will return to the unassigned queue.`
+    );
+    if (!confirmed) return;
+    setUnassigning(true);
+    try {
+      await issueAPI.update(issue._id, { assignedTo: null });
+      broadcastStatusRefresh();
+      await loadIssue();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to unassign task.');
+    } finally {
+      setUnassigning(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#F3F4F8] text-[#1D1D2C] flex">
-      <AdminSidebar active="repairs" profileName="Property Manager" />
+      <AdminSidebar active="repairs" profileName={profileName} />
 
       <main className="flex-1 px-5 py-5">
         <div className="max-w-5xl mx-auto">
@@ -251,6 +281,17 @@ export default function AdminRepairDetail() {
                         <p className="text-[11px] text-[#7681A8] font-semibold">Resolved At</p>
                         <p className="font-medium text-[#2A2E3F]">{issue.resolvedAt ? new Date(issue.resolvedAt).toLocaleString() : '—'}</p>
                       </div>
+                      {issue.scheduledStartDate && (
+                        <div className="rounded-lg bg-[#FFF8EC] border border-[#FFE5A0] p-3 sm:col-span-2">
+                          <p className="text-[11px] text-[#B97D00] font-semibold">📅 Scheduled Start</p>
+                          <p className="font-semibold text-[#2A2E3F] mt-0.5">
+                            {new Date(issue.scheduledStartDate).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+                            {issue.scheduledStartTime && (
+                              <span className="ml-2 text-[#596080] font-normal">at {issue.scheduledStartTime}</span>
+                            )}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -303,6 +344,17 @@ export default function AdminRepairDetail() {
 
               <div className="flex justify-end">
                 <div className="flex items-center gap-3">
+                  {/* Unassign button — only shown when task is assigned/in-progress and has a staff member */}
+                  {issue.assignedTo && ['assigned', 'in progress'].includes(normalizeStatus(issue.status)) && (
+                    <button
+                      type="button"
+                      disabled={unassigning}
+                      onClick={handleUnassign}
+                      className="px-5 py-2.5 rounded-lg border border-red-300 text-red-600 bg-white text-sm font-semibold hover:bg-red-50 disabled:opacity-60 transition"
+                    >
+                      {unassigning ? 'Unassigning...' : '↩ Unassign Staff'}
+                    </button>
+                  )}
                   {normalizeStatus(issue.status) === 'payment done' && (
                     <button
                       type="button"
