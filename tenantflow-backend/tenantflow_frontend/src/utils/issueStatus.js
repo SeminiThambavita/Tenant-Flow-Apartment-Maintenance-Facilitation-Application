@@ -21,6 +21,7 @@ export const formatStatusLabel = (status) => {
   const normalized = normalizeStatus(status);
   if (!normalized) return 'New';
   if (normalized === 'in progress') return 'In Progress';
+  if (normalized === 'tenant confirmed') return 'Tenant Confirmed';
   if (normalized === 'done and payment pending') return 'Done & Payment Pending';
   if (normalized === 'cost report submitted') return 'Cost Report Submitted';
   if (normalized === 'cost report rejected') return 'Cost Report Rejected';
@@ -36,7 +37,7 @@ export const formatStatusLabel = (status) => {
 
 export const isOpenStatus = (status) => {
   const key = normalizeStatus(status);
-  return key === 'new' || key === 'assigned' || key === 'in progress';
+  return key === 'new' || key === 'assigned' || key === 'in progress' || key === 'tenant confirmed';
 };
 
 export const isCompletedStatus = (status) => {
@@ -65,6 +66,11 @@ export const getStatusBadgeTheme = (status, variant = 'pill') => {
       pill: 'bg-emerald-100 text-emerald-800 border border-emerald-300',
       circle: 'bg-emerald-600 text-white border border-emerald-700',
       short: 'PROG',
+    },
+    'tenant confirmed': {
+      pill: 'bg-purple-100 text-purple-800 border border-purple-300',
+      circle: 'bg-purple-600 text-white border border-purple-700',
+      short: 'CONF',
     },
     completed: {
       pill: 'bg-amber-100 text-amber-800 border border-amber-300',
