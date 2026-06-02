@@ -45,6 +45,7 @@ const TASK_STATUS_FLOW = [
   { value: 'new', label: 'New', dot: 'bg-blue-600', bar: 'bg-blue-500' },
   { value: 'assigned', label: 'Assigned', dot: 'bg-blue-600', bar: 'bg-blue-500' },
   { value: 'in progress', label: 'In Progress', dot: 'bg-emerald-600', bar: 'bg-emerald-500' },
+  { value: 'tenant confirmed', label: 'Tenant Confirmed', dot: 'bg-purple-600', bar: 'bg-purple-500' },
   { value: 'completed', label: 'Completed', dot: 'bg-amber-500', bar: 'bg-amber-400' },
   { value: 'cost report submitted', label: 'Cost Report Submitted', dot: 'bg-violet-600', bar: 'bg-violet-500' },
   { value: 'invoice issued', label: 'Invoice Issued', dot: 'bg-sky-600', bar: 'bg-sky-500' },
@@ -243,6 +244,24 @@ export default function StaffTaskDetail() {
                     </div>
                   </div>
                 </div>
+
+                {/* Scheduled Start — shown whenever a date has been set by the manager */}
+                {issue.scheduledStartDate && (
+                  <div className="sm:col-span-2 rounded-lg bg-[#FFF8EC] border border-[#FFE5A0] p-3">
+                    <p className="text-[11px] text-[#B97D00] font-semibold uppercase tracking-wide">📅 Scheduled Start Date</p>
+                    <p className="text-sm font-semibold text-[#2A2E3F] mt-1">
+                      {new Date(issue.scheduledStartDate).toLocaleDateString('en-GB', {
+                        weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+                      })}
+                      {issue.scheduledStartTime && (
+                        <span className="ml-2 font-normal text-[#596080]">at {issue.scheduledStartTime}</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-[#8A7040] mt-1">
+                      Please ensure work is started by this date.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="mt-4 bg-[#F8F9FC] rounded-lg p-3">
@@ -280,16 +299,31 @@ export default function StaffTaskDetail() {
                   {updating ? 'Updating...' : 'Start Work (In Progress)'}
                 </button>
               ) : normalizeStatus(issue.status) === 'in progress' ? (
-                <button
-                  type="button"
-                  disabled={updating}
-                  onClick={() => updateStatus('completed')}
-                  className="px-5 py-2.5 rounded-lg bg-[#0E9F6E] text-white text-sm font-semibold disabled:opacity-70"
-                >
-                  {updating ? 'Updating...' : 'Mark as Completed'}
-                </button>
+                // Staff cannot set tenant confirmed — only the tenant can. Show a waiting message.
+                <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+                  <span className="text-amber-500 text-lg">⏳</span>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">Work completed — awaiting tenant confirmation</p>
+                    <p className="text-xs text-amber-600 mt-0.5">The tenant must confirm completion before you can mark this task as done.</p>
+                  </div>
+                </div>
+              ) : normalizeStatus(issue.status) === 'tenant confirmed' ? (
+                <div className="flex flex-col gap-2 w-full sm:w-auto">
+                  <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-lg px-4 py-2.5">
+                    <span className="text-purple-600 text-sm">✓</span>
+                    <p className="text-sm font-semibold text-purple-800">Tenant has confirmed completion</p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={updating}
+                    onClick={() => updateStatus('completed')}
+                    className="px-5 py-2.5 rounded-lg bg-[#0E9F6E] text-white text-sm font-semibold disabled:opacity-70"
+                  >
+                    {updating ? 'Updating...' : 'Mark as Completed'}
+                  </button>
+                </div>
               ) : null}
-              
+
               {normalizeStatus(issue.status) === 'completed' && (
                 <button
                   type="button"

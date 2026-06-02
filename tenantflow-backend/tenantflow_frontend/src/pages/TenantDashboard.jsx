@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { authAPI, invoiceAPI, issueAPI, paymentAPI } from '../api';
 import Logo from '../components/Logo';
 import IssueMediaGallery from '../components/IssueMediaGallery';
@@ -37,6 +37,7 @@ const REQUEST_STATUS_FLOW = [
   { value: 'new', label: 'New', dot: 'bg-blue-600', bar: 'bg-blue-500' },
   { value: 'assigned', label: 'Assigned', dot: 'bg-blue-600', bar: 'bg-blue-500' },
   { value: 'in progress', label: 'In Progress', dot: 'bg-emerald-600', bar: 'bg-emerald-500' },
+  { value: 'tenant confirmed', label: 'Tenant Confirmed', dot: 'bg-purple-600', bar: 'bg-purple-500' },
   { value: 'completed', label: 'Completed', dot: 'bg-amber-500', bar: 'bg-amber-400' },
   { value: 'cost report submitted', label: 'Cost Report Submitted', dot: 'bg-violet-600', bar: 'bg-violet-500' },
   { value: 'invoice issued', label: 'Invoice Issued', dot: 'bg-sky-600', bar: 'bg-sky-500' },
@@ -97,6 +98,55 @@ export default function TenantDashboard() {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [pendingInvoiceToOpen, setPendingInvoiceToOpen] = useState(null);
+  const [confirmingIssueId, setConfirmingIssueId] = useState(null);
+
+  // Resizable sidebar
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = localStorage.getItem('tenantSidebarWidth');
+    return saved ? Number(saved) : 240;
+  });
+  const isDragging = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartWidth = useRef(sidebarWidth);
+
+  const onSidebarMouseMove = useCallback((e) => {
+    if (!isDragging.current) return;
+    const delta = e.clientX - dragStartX.current;
+    const next = Math.min(320, Math.max(60, dragStartWidth.current + delta));
+    setSidebarWidth(next);
+  }, []);
+
+  const onSidebarMouseUp = useCallback(() => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    localStorage.setItem('tenantSidebarWidth', String(sidebarWidth));
+  }, [sidebarWidth]);
+
+  useEffect(() => {
+    window.addEventListener('mousemove', onSidebarMouseMove);
+    window.addEventListener('mouseup', onSidebarMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onSidebarMouseMove);
+      window.removeEventListener('mouseup', onSidebarMouseUp);
+    };
+  }, [onSidebarMouseMove, onSidebarMouseUp]);
+
+  const startSidebarDrag = (e) => {
+    isDragging.current = true;
+    dragStartX.current = e.clientX;
+    dragStartWidth.current = sidebarWidth;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  };
+
+  useEffect(() => {
+    localStorage.setItem('tenantSidebarWidth', String(sidebarWidth));
+  }, [sidebarWidth]);
+
+  const sidebarCollapsed = sidebarWidth <= 80;
 
   const applyPaidOverrides = (invoiceList) => {
     const paidIds = JSON.parse(localStorage.getItem('paidInvoiceIds') || '[]');
@@ -338,6 +388,20 @@ export default function TenantDashboard() {
       setPaymentError(err?.response?.data?.message || 'Failed to delete payment.');
     } finally {
       setDeletingPaymentId(null);
+    }
+  };
+
+  const handleConfirmCompletion = async (issueId) => {
+    setConfirmingIssueId(issueId);
+    try {
+      await issueAPI.update(issueId, { status: 'tenant confirmed' });
+      // Refresh issues so the modal and table update immediately
+      await fetchIssues();
+    } catch (err) {
+      // Surface error inside the modal via issueError
+      setIssueError(err?.response?.data?.message || 'Failed to confirm. Please try again.');
+    } finally {
+      setConfirmingIssueId(null);
     }
   };
 
@@ -584,58 +648,80 @@ export default function TenantDashboard() {
       </nav>
 
       <div className="max-w-[1440px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] gap-4 sm:gap-6 items-start">
-          {/* Sidebar */}
-          <aside className="bg-white shadow-sm border border-slate-200 rounded-2xl lg:sticky lg:top-[84px]">
-            <div className="p-4 space-y-1">
+        <div className="grid grid-cols-1 lg:grid-cols-[auto_minmax(0,1fr)] gap-4 sm:gap-6 items-start">
+          {/* Sidebar — resizable */}
+          <aside
+            className="relative bg-white shadow-sm border border-slate-200 rounded-2xl lg:sticky lg:top-[84px] shrink-0"
+            style={{ width: sidebarWidth, minWidth: 60, maxWidth: 320 }}
+          >
+            <div className={`p-3 space-y-1 overflow-hidden ${sidebarCollapsed ? 'px-2' : ''}`}>
             <button
               onClick={() => setActiveMenu('dashboard')}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition ${
+              title={sidebarCollapsed ? 'Dashboard' : undefined}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
                 activeMenu === 'dashboard'
                   ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
                   : 'text-gray-700 hover:bg-slate-50'
               }`}
             >
-              📊 Dashboard
+              <span className="shrink-0">📊</span>
+              {!sidebarCollapsed && <span className="truncate">Dashboard</span>}
             </button>
             <button
               onClick={() => navigate('/invoices')}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition ${
+              title={sidebarCollapsed ? 'My Invoices' : undefined}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
                 activeMenu === 'invoices'
                   ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
                   : 'text-gray-700 hover:bg-slate-50'
               }`}
             >
-              📄 My Invoices
+              <span className="shrink-0">📄</span>
+              {!sidebarCollapsed && <span className="truncate">My Invoices</span>}
             </button>
             <button
               onClick={() => navigate('/payment-history')}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition ${
+              title={sidebarCollapsed ? 'Payment History' : undefined}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
                 activeMenu === 'payments'
                   ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
                   : 'text-gray-700 hover:bg-slate-50'
               }`}
             >
-              💳 Payment History
+              <span className="shrink-0">💳</span>
+              {!sidebarCollapsed && <span className="truncate">Payment History</span>}
             </button>
             <button
               onClick={() => navigate('/profile')}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition ${
+              title={sidebarCollapsed ? 'Settings' : undefined}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
                 activeMenu === 'settings'
                   ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
                   : 'text-gray-700 hover:bg-slate-50'
               }`}
             >
-              ⚙️ Settings
+              <span className="shrink-0">⚙️</span>
+              {!sidebarCollapsed && <span className="truncate">Settings</span>}
             </button>
-            <hr className="my-4" />
+            <hr className="my-3" />
             <button
               onClick={handleLogout}
-              className="w-full text-left px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 font-medium transition"
+              title={sidebarCollapsed ? 'Logout' : undefined}
+              className="w-full text-left px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 font-medium transition flex items-center gap-2"
             >
-              🚪 Logout
+              <span className="shrink-0">🚪</span>
+              {!sidebarCollapsed && <span className="truncate">Logout</span>}
             </button>
           </div>
+
+            {/* Drag handle */}
+            <div
+              onMouseDown={startSidebarDrag}
+              className="absolute top-0 right-0 w-2 h-full cursor-col-resize hover:bg-blue-200/40 transition-colors group rounded-r-2xl z-10"
+              title="Drag to resize"
+            >
+              <div className="absolute right-0.5 top-1/2 -translate-y-1/2 w-1 h-8 rounded-full bg-slate-300 group-hover:bg-blue-500 transition-colors" />
+            </div>
           </aside>
 
           {/* Main Content */}
@@ -1199,7 +1285,24 @@ export default function TenantDashboard() {
                 </div>
               )}
             </div>
-            <div className="mt-5 flex justify-end">
+            <div className="mt-5 flex items-center justify-between gap-3">
+              {/* Confirm completion button — only shown when work is in progress */}
+              {normalizeStatus(selectedRequest.statusKey) === 'in progress' ? (
+                <button
+                  type="button"
+                  disabled={confirmingIssueId === selectedRequest.raw._id}
+                  onClick={() => handleConfirmCompletion(selectedRequest.raw._id)}
+                  className="px-4 py-2 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-lg disabled:opacity-60 transition"
+                >
+                  {confirmingIssueId === selectedRequest.raw._id ? 'Confirming...' : '✓ Confirm Work is Complete'}
+                </button>
+              ) : normalizeStatus(selectedRequest.statusKey) === 'tenant confirmed' ? (
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">
+                  <span>✓</span> You confirmed this task — staff will finalise shortly.
+                </div>
+              ) : (
+                <span />
+              )}
               <button
                 type="button"
                 onClick={() => setSelectedRequest(null)}
