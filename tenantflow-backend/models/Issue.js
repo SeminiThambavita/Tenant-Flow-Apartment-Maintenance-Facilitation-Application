@@ -83,6 +83,7 @@ const issueSchema = new mongoose.Schema({
       "new",
       "assigned",
       "in progress",
+      "tenant confirmed",
       "completed",
       "cost report submitted",
       "cost report rejected",
@@ -100,6 +101,22 @@ const issueSchema = new mongoose.Schema({
     default: "medium"
   },
   
+  // Scheduled start date set by manager when assigning
+  scheduledStartDate: {
+    type: Date
+  },
+
+  // Optional scheduled start time (stored as "HH:MM" string)
+  scheduledStartTime: {
+    type: String
+  },
+
+  // Whether a start-date reminder has already been sent
+  startDateReminderSent: {
+    type: Boolean,
+    default: false
+  },
+
   // Assigned staff member
   assignedTo: {
     type: mongoose.Schema.Types.ObjectId,

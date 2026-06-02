@@ -53,7 +53,12 @@ export const createTask = async (req, res) => {
       assignedTo,
       description: issue.description,
       building: issue.building,
-      priority: priority || "medium",
+      priority: priority || (() => {
+        // Map issue urgency to task priority if no explicit priority provided
+        if (issue.urgency === 'urgent') return 'high';
+        if (issue.urgency === 'low') return 'low';
+        return 'medium';
+      })(),
       estimatedHours: estimatedHours || 0,
       dueDate,
       assignedBy: req.user._id,

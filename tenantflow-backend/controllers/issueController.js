@@ -17,6 +17,7 @@ const statusAliasMap = {
   new: "new",
   assigned: "assigned",
   "in progress": "in progress",
+  "tenant confirmed": "tenant confirmed",
   "cost report submitted": "cost report submitted",
   "cost report rejected": "cost report rejected",
   "invoice issued": "invoice issued",
@@ -139,7 +140,12 @@ export const createIssue = async (req, res) => {
       specialArrangements: parsedSpecialArrangements,
       media,
       status: "new",
-      priority: "medium",
+      priority: (() => {
+        const u = String(urgency || "").toLowerCase();
+        if (u === "urgent") return "high";
+        if (u === "low") return "low";
+        return "medium"; // standard → medium
+      })(),
       statusHistory: [{
         status: "new",
         changedBy: req.user._id,
@@ -275,7 +281,7 @@ export const updateIssue = async (req, res) => {
       return res.status(404).json({ message: "Issue not found" });
     }
 
-    const { status, priority, assignedTo, resolutionNotes } = req.body;
+    const { status, priority, assignedTo, resolutionNotes, scheduledStartDate, scheduledStartTime } = req.body;
     const assignedStaffId = getAssignedStaffId(issue);
     const previousStatus = issue.status;
     let statusChanged = false;
@@ -351,6 +357,13 @@ export const updateIssue = async (req, res) => {
 
       if (priority) issue.priority = priority;
       if (resolutionNotes !== undefined) issue.resolutionNotes = resolutionNotes;
+      if (scheduledStartDate !== undefined) {
+        issue.scheduledStartDate = scheduledStartDate ? new Date(scheduledStartDate) : null;
+        issue.startDateReminderSent = false; // reset reminder flag if date changes
+      }
+      if (scheduledStartTime !== undefined) {
+        issue.scheduledStartTime = scheduledStartTime || null;
+      }
 
       if (issue.status === "completed" && !issue.resolvedAt) {
         issue.resolvedAt = new Date();
@@ -375,7 +388,7 @@ export const updateIssue = async (req, res) => {
         const validTransitions = {
           "assigned": ["in progress"],
           "new": ["in progress"],
-          "in progress": ["completed"]
+          "tenant confirmed": ["completed"]   // staff can only mark complete after tenant confirms
         };
 
         const allowedTransitions = validTransitions[currentStatus] || [];
@@ -415,6 +428,45 @@ export const updateIssue = async (req, res) => {
 
       if (resolutionNotes !== undefined) {
         issue.resolutionNotes = resolutionNotes;
+      }
+    }
+    // TENANT: Can only confirm task completion (in progress → tenant confirmed)
+    else if (req.user.role === "tenant") {
+      // Verify this issue belongs to the requesting tenant
+      const tenantId = issue.tenant?._id?.toString() || issue.tenant?.toString();
+      if (tenantId !== req.user._id.toString()) {
+        return res.status(403).json({ message: "Not authorized to update this issue" });
+      }
+
+      if (status) {
+        const mappedStatus = statusAliasMap[normalizeStatus(status)];
+        if (mappedStatus !== "tenant confirmed") {
+          return res.status(403).json({ message: "Tenants can only confirm task completion" });
+        }
+        if (issue.status !== "in progress") {
+          return res.status(400).json({
+            message: `Cannot confirm — task is currently '${issue.status}', not 'in progress'`
+          });
+        }
+
+        issue.status = "tenant confirmed";
+        statusChanged = true;
+
+        if (!issue.statusHistory) issue.statusHistory = [];
+        issue.statusHistory.push({
+          status: "tenant confirmed",
+          changedBy: req.user._id,
+          changedAt: new Date(),
+          reason: "Tenant confirmed task completion"
+        });
+
+        // Notify assigned staff and manager
+        await notifyStatusChanged(
+          issue,
+          previousStatus,
+          "tenant confirmed",
+          issue.propertyManager?._id
+        );
       }
     } else {
       return res.status(403).json({ message: "Not authorized to update this issue" });
