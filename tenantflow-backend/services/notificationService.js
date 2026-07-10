@@ -111,6 +111,14 @@ export const notifyPaymentReceived = async (invoiceId, payment) => {
       }
     };
 
+    if (invoice.tenant?._id) {
+      await createNotification(invoice.tenant._id, {
+        ...payload,
+        message: `Your payment for invoice ${invoice.invoiceNumber} has been received and recorded.`,
+        actionUrl: `/tenant-dashboard?menu=invoices&invoiceId=${invoice._id}`
+      });
+    }
+
     if (issue.assignedTo?._id) {
       await createNotification(issue.assignedTo._id, payload);
     }

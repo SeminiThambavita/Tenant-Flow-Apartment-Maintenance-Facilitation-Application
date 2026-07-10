@@ -29,6 +29,14 @@ export default function NotificationBell() {
         return '⚙️';
       case 'invoice_sent':
         return '📄';
+      case 'payment_received':
+        return '💳';
+      case 'cost_report_submitted':
+        return '🧾';
+      case 'cost_report_approved':
+        return '✅';
+      case 'cost_report_rejected':
+        return '⚠️';
       default:
         return '🔔';
     }
@@ -44,6 +52,14 @@ export default function NotificationBell() {
         return 'bg-purple-50 border-purple-200';
       case 'invoice_sent':
         return 'bg-blue-50 border-blue-200';
+      case 'payment_received':
+        return 'bg-emerald-50 border-emerald-200';
+      case 'cost_report_submitted':
+        return 'bg-violet-50 border-violet-200';
+      case 'cost_report_approved':
+        return 'bg-emerald-50 border-emerald-200';
+      case 'cost_report_rejected':
+        return 'bg-amber-50 border-amber-200';
       default:
         return 'bg-gray-50 border-gray-200';
     }
@@ -161,8 +177,14 @@ export default function NotificationBell() {
                           {notification.data.unitNumber && (
                             <p>Unit: {notification.data.unitNumber}</p>
                           )}
+                          {notification.data.totalCost != null && (
+                            <p>Total: LKR {Number(notification.data.totalCost).toFixed(2)}</p>
+                          )}
                           {notification.data.newStatus && (
                             <p>Status: {notification.data.newStatus}</p>
+                          )}
+                          {notification.data.rejectionRemarks && (
+                            <p>Reason: {notification.data.rejectionRemarks}</p>
                           )}
                         </div>
                       )}

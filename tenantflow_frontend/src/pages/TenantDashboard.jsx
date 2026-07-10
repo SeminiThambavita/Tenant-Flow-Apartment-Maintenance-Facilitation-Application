@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { authAPI, invoiceAPI, issueAPI, paymentAPI } from '../api';
 import Logo from '../components/Logo';
+import NotificationBell from '../components/NotificationBell';
 import IssueMediaGallery from '../components/IssueMediaGallery';
 import ProfileDropdown from '../components/ProfileDropdown';
 import usePolling from '../hooks/usePolling';
@@ -597,51 +598,7 @@ export default function TenantDashboard() {
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center gap-4">
           <Logo size={32} textClassName="text-lg font-bold text-gray-900" />
           <div className="flex items-center gap-6">
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowNotifications((prev) => !prev)}
-                className="p-2 hover:bg-slate-100 rounded-lg transition relative"
-              >
-                <span className="text-xl">🔔</span>
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-              {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 shadow-lg rounded-xl overflow-hidden z-50">
-                  <div className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-50">
-                    Notifications
-                  </div>
-                  {notifications.length === 0 ? (
-                    <div className="px-4 py-3 text-xs text-slate-500">No notifications yet.</div>
-                  ) : (
-                    <div className="max-h-64 overflow-y-auto">
-                      {notifications.slice(0, 6).map((notification) => (
-                        <button
-                          key={notification.id}
-                          type="button"
-                          onClick={() => handleNotificationClick(notification)}
-                          className={`w-full text-left px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition ${
-                            notification.read ? 'text-slate-500' : 'text-slate-900'
-                          }`}
-                        >
-                          <p className="text-xs font-semibold">{notification.title}</p>
-                          {notification.message && (
-                            <p className="text-[11px] text-slate-500 mt-1">{notification.message}</p>
-                          )}
-                          <p className="text-[10px] text-slate-400 mt-1">
-                            {new Date(notification.createdAt).toLocaleString()}
-                          </p>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            <NotificationBell />
             <ProfileDropdown userName={userName} userInitials={userInitials} profileImage={profileImage} />
           </div>
         </div>

@@ -1,26 +1,17 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { invoiceAPI } from '../api';
-import { addNotification } from '../utils/notifications';
 import { broadcastStatusRefresh } from '../utils/statusRefresh';
 
 export default function PaymentSuccess() {
   useEffect(() => {
     const pendingInvoiceId = localStorage.getItem('pendingInvoiceId');
-    const pendingInvoiceLabel = localStorage.getItem('pendingInvoiceLabel');
     if (!pendingInvoiceId) {
-      if (pendingInvoiceLabel) {
-        addNotification({
-          type: 'payment-success',
-          referenceId: pendingInvoiceLabel,
-          title: 'Payment done',
-          message: `for ${pendingInvoiceLabel}`,
-          target: { path: '/tenant-dashboard', menu: 'invoices' }
-        });
-        localStorage.removeItem('pendingInvoiceLabel');
-      }
+      localStorage.removeItem('pendingInvoiceLabel');
       return;
     }
+
+    const pendingInvoiceLabel = localStorage.getItem('pendingInvoiceLabel');
 
     const paidInvoiceIds = JSON.parse(localStorage.getItem('paidInvoiceIds') || '[]');
     const nextPaidIds = Array.isArray(paidInvoiceIds) ? paidInvoiceIds : [];
@@ -31,14 +22,6 @@ export default function PaymentSuccess() {
     localStorage.setItem('paidInvoiceIds', JSON.stringify(nextPaidIds));
     localStorage.removeItem('pendingInvoiceId');
     localStorage.removeItem('pendingInvoiceLabel');
-
-    addNotification({
-      type: 'payment-success',
-      referenceId: pendingInvoiceId,
-      title: 'Payment done',
-      message: pendingInvoiceLabel ? `for ${pendingInvoiceLabel}` : 'for your invoice',
-      target: { path: '/tenant-dashboard', menu: 'invoices', invoiceId: pendingInvoiceId }
-    });
 
     invoiceAPI.update(pendingInvoiceId, { status: 'paid' })
       .then(() => broadcastStatusRefresh())

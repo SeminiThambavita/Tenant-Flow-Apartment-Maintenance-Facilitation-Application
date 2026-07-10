@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { authAPI, issueAPI } from '../api';
 import Logo from '../components/Logo';
-import { addNotification } from '../utils/notifications';
 import { buildFileUrl, getUserProfileImage } from '../utils/profileImage';
 import Dialog from '../components/Dialog';
 
@@ -166,17 +165,7 @@ export default function ReviewIssue() {
     });
 
     try {
-      const response = await issueAPI.create(payload);
-      const createdIssue = response?.data?.issue;
-      const categoryLabel = reportData.category || 'Maintenance';
-      addNotification({
-        type: 'issue-reported',
-        referenceId: createdIssue?._id || `${Date.now()}`,
-        title: 'Issue reported',
-        message: `${categoryLabel} request submitted`,
-        target: { path: '/tenant-dashboard', menu: 'dashboard' },
-        createdAt: createdIssue?.createdAt
-      });
+      await issueAPI.create(payload);
       localStorage.removeItem(STORAGE_KEY);
       setDialog({
         isOpen: true,

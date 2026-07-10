@@ -14,8 +14,17 @@ const router = express.Router();
 // All routes require authentication
 router.use(authMiddleware);
 
+const issueUpload = upload.array("media", 10);
+
 // Create issue with file uploads (up to 10 files)
-router.post("/", upload.array("media", 10), createIssue);
+router.post("/", (req, res, next) => {
+  issueUpload(req, res, (error) => {
+    if (error) {
+      return res.status(400).json({ message: error.message || "Invalid file upload." });
+    }
+    next();
+  });
+}, createIssue);
 
 // Get all issues (for logged-in user)
 router.get("/", getIssues);

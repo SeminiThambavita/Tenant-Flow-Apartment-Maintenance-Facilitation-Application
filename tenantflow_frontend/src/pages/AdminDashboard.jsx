@@ -4,6 +4,7 @@ import { authAPI, issueAPI } from '../api';
 import AdminSidebar from '../components/AdminSidebar';
 import ProfileDropdown from '../components/ProfileDropdown';
 import CostReportsDashboard from '../components/CostReportsDashboard';
+import NotificationBell from '../components/NotificationBell';
 import usePolling from '../hooks/usePolling';
 import { formatStatusLabel, isOpenStatus } from '../utils/issueStatus';
 import { getUserProfileImage } from '../utils/profileImage';
@@ -22,8 +23,6 @@ export default function AdminDashboard() {
   const [profileImage, setProfileImage] = useState('');
   const [issues, setIssues] = useState([]);
   const [pendingStaff, setPendingStaff] = useState([]);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState([]);
   const [actionLoadingId, setActionLoadingId] = useState('');
 
   useEffect(() => {
@@ -50,30 +49,9 @@ export default function AdminDashboard() {
         setIssues(issueResponse?.data?.issues || []);
         setPendingStaff(pendingResponse?.data?.staff || []);
 
-        const issueUpdates = (issueResponse?.data?.issues || [])
-          .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime())
-          .slice(0, 6)
-          .map((item) => ({
-            id: item._id,
-            title: `${item.issueType || 'Maintenance'} update`,
-            message: `${getBuildingLabel(item.building)} ${item.unit || item.unitNumber || ''} • ${formatStatusLabel(item.status)}${item.assignedTo?.name ? ` • Staff: ${item.assignedTo.name}` : ''}`,
-            createdAt: item.updatedAt || item.createdAt,
-            read: false
-          }));
-
-        const staffUpdates = (pendingResponse?.data?.staff || []).slice(0, 3).map((staff) => ({
-          id: `staff-${staff._id}`,
-          title: 'Staff approval pending',
-          message: `${staff.name} is waiting for approval`,
-          createdAt: staff.createdAt,
-          read: false
-        }));
-
-        setNotifications([...staffUpdates, ...issueUpdates].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
       } catch {
         setIssues([]);
         setPendingStaff([]);
-        setNotifications([]);
         setProfileImage('');
       }
     };
@@ -114,13 +92,6 @@ export default function AdminDashboard() {
         createdAt: issue.updatedAt || issue.createdAt
       }));
   }, [issues]);
-
-  const unreadCount = notifications.filter((notification) => !notification.read).length;
-
-  const handleNotificationClick = (notification) => {
-    setNotifications((prev) => prev.map((item) => (item.id === notification.id ? { ...item, read: true } : item)));
-    setShowNotifications(false);
-  };
 
   const handleApproveReject = async (staffId, status) => {
     setActionLoadingId(staffId + status);
@@ -178,38 +149,7 @@ export default function AdminDashboard() {
 
           <div className="flex items-center gap-5 mt-1">
             <button className="w-8 h-8 rounded-md border border-[#E2E6F2] bg-white text-[#5E6686]">💬</button>
-            <div className="relative">
-              <button
-                onClick={() => setShowNotifications((prev) => !prev)}
-                className="w-8 h-8 rounded-md border border-[#E2E6F2] bg-white text-[#5E6686] relative"
-              >
-                🔔
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-              {showNotifications && (
-                <div className="absolute right-0 mt-2 w-72 bg-white border border-[#E2E6F2] rounded-lg shadow z-50 overflow-hidden">
-                  <div className="px-3 py-2 text-[11px] font-semibold text-[#596080] border-b border-[#EEF0F6]">Notifications</div>
-                  {notifications.length === 0 ? (
-                    <div className="px-3 py-4 text-[11px] text-[#7681A8]">No notifications yet.</div>
-                  ) : (
-                    notifications.slice(0, 6).map((notification) => (
-                      <button
-                        key={notification.id}
-                        onClick={() => handleNotificationClick(notification)}
-                        className="w-full text-left px-3 py-2 border-b border-[#EEF0F6] hover:bg-[#F7F8FC]"
-                      >
-                        <p className="text-[11px] font-semibold text-[#20253A]">{notification.title}</p>
-                        {notification.message && <p className="text-[10px] text-[#7681A8] mt-0.5">{notification.message}</p>}
-                      </button>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
+            <NotificationBell />
             <div className="flex justify-end">
               <ProfileDropdown userName={profile.name} userInitials={getInitials(profile.name)} profileImage={profileImage} />
             </div>

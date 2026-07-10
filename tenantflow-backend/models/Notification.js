@@ -50,7 +50,11 @@ const notificationSchema = new mongoose.Schema({
     unitNumber: String,
     building: String,
     invoiceId: String,
-    invoiceNumber: String
+    invoiceNumber: String,
+    totalCost: Number,
+    rejectionRemarks: String,
+    paymentReference: String,
+    paymentMethod: String
   },
 
   // Read/unread status

@@ -76,6 +76,36 @@ export const createCostReport = async (req, res) => {
       currentCostReport: costReport._id
     });
 
+    if (issue.tenant) {
+      await createNotification(issue.tenant, {
+        type: "task_status_changed",
+        issue: issue._id,
+        title: "Cost Report Created",
+        message: `A cost report has been created for your ${issue.issueType} request.`,
+        actionUrl: `/tenant-dashboard?menu=invoices`,
+        data: {
+          issueType: issue.issueType,
+          unitNumber: issue.unitNumber || issue.unit,
+          totalCost: costReport.totalCost
+        }
+      });
+    }
+
+    if (issue.propertyManager) {
+      await createNotification(issue.propertyManager, {
+        type: "task_status_changed",
+        issue: issue._id,
+        title: "Cost Report Created",
+        message: `A new cost report has been created for ${issue.issueType} in Unit ${issue.unitNumber || issue.unit || "—"}.`,
+        actionUrl: `/admin/cost-reports/${costReport._id}`,
+        data: {
+          issueType: issue.issueType,
+          unitNumber: issue.unitNumber || issue.unit,
+          totalCost: costReport.totalCost
+        }
+      });
+    }
+
     return res.status(201).json({
       message: "Cost report created",
       costReport
@@ -363,6 +393,36 @@ export const submitCostReport = async (req, res) => {
       actionUrl: `/admin/cost-reports/${costReport._id}`
     });
 
+    if (costReport.issue.tenant?._id || costReport.issue.tenant) {
+      await createNotification(costReport.issue.tenant._id || costReport.issue.tenant, {
+        type: "task_status_changed",
+        issue: costReport.issue._id,
+        title: "Cost Report Submitted",
+        message: `A cost report for your ${costReport.issue.issueType} request has been submitted for approval.`,
+        actionUrl: `/tenant-dashboard?menu=invoices`,
+        data: {
+          issueType: costReport.issue.issueType,
+          unitNumber: costReport.issue.unitNumber || costReport.issue.unit,
+          totalCost: costReport.totalCost
+        }
+      });
+    }
+
+    if (costReport.issue.assignedTo) {
+      await createNotification(costReport.issue.assignedTo, {
+        type: "task_status_changed",
+        issue: costReport.issue._id,
+        title: "Cost Report Submitted",
+        message: `Your cost report for ${costReport.issue.issueType} has been submitted for approval.`,
+        actionUrl: `/staff/tasks/${costReport.issue._id}`,
+        data: {
+          issueType: costReport.issue.issueType,
+          unitNumber: costReport.issue.unitNumber || costReport.issue.unit,
+          totalCost: costReport.totalCost
+        }
+      });
+    }
+
     return res.json({
       message: "Cost report submitted for approval",
       costReport,
@@ -479,6 +539,38 @@ export const approveCostReport = async (req, res) => {
       actionUrl: `/staff/tasks/${costReport.issue._id}`
     });
 
+    if (costReport.issue.tenant) {
+      await createNotification(costReport.issue.tenant, {
+        type: "task_status_changed",
+        issue: costReport.issue._id,
+        title: "Invoice Generated",
+        message: `Your ${costReport.issue.issueType} request has been approved and an invoice has been generated.`,
+        actionUrl: `/tenant-dashboard?menu=invoices&invoiceId=${invoice._id}`,
+        data: {
+          issueType: costReport.issue.issueType,
+          unitNumber: costReport.issue.unitNumber || costReport.issue.unit,
+          totalCost: costReport.totalCost,
+          invoiceNumber
+        }
+      });
+    }
+
+    if (getPopulatedId(costReport.issue.propertyManager) !== req.user._id.toString()) {
+      await createNotification(costReport.issue.propertyManager?._id || costReport.issue.propertyManager, {
+        type: "task_status_changed",
+        issue: costReport.issue._id,
+        title: "Cost Report Approved",
+        message: `Cost report for ${costReport.issue.issueType} has been approved and invoice ${invoiceNumber} was generated.`,
+        actionUrl: `/admin/cost-reports/${costReport._id}`,
+        data: {
+          issueType: costReport.issue.issueType,
+          unitNumber: costReport.issue.unitNumber || costReport.issue.unit,
+          totalCost: costReport.totalCost,
+          invoiceNumber
+        }
+      });
+    }
+
     return res.json({
       message: "Cost report approved and invoice created",
       costReport,
@@ -571,6 +663,38 @@ export const rejectCostReport = async (req, res) => {
       },
       actionUrl: `/staff/tasks/${costReport.issue._id}`
     });
+
+    if (costReport.issue.tenant?._id || costReport.issue.tenant) {
+      await createNotification(costReport.issue.tenant._id || costReport.issue.tenant, {
+        type: "task_status_changed",
+        issue: costReport.issue._id,
+        title: "Cost Report Rejected",
+        message: `Your ${costReport.issue.issueType} request was rejected. Reason: ${remarks}`,
+        actionUrl: `/tenant-dashboard?menu=requests`,
+        data: {
+          issueType: costReport.issue.issueType,
+          unitNumber: costReport.issue.unitNumber || costReport.issue.unit,
+          totalCost: costReport.totalCost,
+          rejectionRemarks: remarks
+        }
+      });
+    }
+
+    if (getPopulatedId(costReport.issue.propertyManager) !== req.user._id.toString()) {
+      await createNotification(costReport.issue.propertyManager?._id || costReport.issue.propertyManager, {
+        type: "task_status_changed",
+        issue: costReport.issue._id,
+        title: "Cost Report Rejected",
+        message: `Cost report for ${costReport.issue.issueType} was rejected. Reason: ${remarks}`,
+        actionUrl: `/admin/cost-reports/${costReport._id}`,
+        data: {
+          issueType: costReport.issue.issueType,
+          unitNumber: costReport.issue.unitNumber || costReport.issue.unit,
+          totalCost: costReport.totalCost,
+          rejectionRemarks: remarks
+        }
+      });
+    }
 
     return res.json({
       message: "Cost report rejected",
