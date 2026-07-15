@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { authAPI } from '../api';
 import AdminSidebar from '../components/AdminSidebar';
+import { buildFileUrl } from '../utils/profileImage';
 
 export default function AdminStaffDetailView() {
   const { id } = useParams();
@@ -88,7 +89,7 @@ export default function AdminStaffDetailView() {
                 <div className="flex items-center gap-6">
                   {staff.staffProfilePhoto ? (
                     <img 
-                      src={`http://localhost:5000${staff.staffProfilePhoto}`}
+                     src={buildFileUrl(staff.staffProfilePhoto)}
                       alt="Profile" 
                       className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
                     />
@@ -304,12 +305,12 @@ export default function AdminStaffDetailView() {
                     {staff.staffIdDocument ? (
                       <div className="border border-slate-200 rounded-lg overflow-hidden bg-white p-2">
                         <img 
-                          src={`http://localhost:5000${staff.staffIdDocument}`}
+                          src={buildFileUrl(staff.staffIdDocument)}
                           alt="ID Document" 
                           className="w-full h-40 object-contain rounded"
                         />
                         <a 
-                          href={`http://localhost:5000${staff.staffIdDocument}`}
+                          href={buildFileUrl(staff.staffIdDocument)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="mt-3 block text-center text-sm text-blue-600 hover:text-blue-800 font-medium"

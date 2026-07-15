@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { authAPI } from '../api';
+import { authAPI, buildingAPI } from '../api';
 import Logo from '../components/Logo';
 import Dialog from '../components/Dialog';
 import { validateTenantRegistration } from '../utils/tenantRegisterValidation';
@@ -43,21 +43,28 @@ export default function Register() {
   const navigate = useNavigate();
 
   // Load buildings on mount
-  useEffect(() => {
-    const loadBuildings = async () => {
-      try {
-        const response = await fetch('http://localhost:5000/buildings');
-        const data = await response.json();
-        setBuildings(data.buildings || []);
-      } catch (err) {
-        console.error('Failed to load buildings:', err);
-        setError('Failed to load buildings. Please refresh the page.');
-      } finally {
-        setLoadingBuildings(false);
-      }
-    };
-    loadBuildings();
-  }, []);
+ useEffect(() => {
+  const loadBuildings = async () => {
+    try {
+      const response = await buildingAPI.getAll();
+
+      const data = response.data;
+
+      setBuildings(
+        Array.isArray(data)
+          ? data
+          : data.buildings || []
+      );
+    } catch (err) {
+      console.error('Failed to load buildings:', err);
+      setError('Failed to load buildings. Please refresh the page.');
+    } finally {
+      setLoadingBuildings(false);
+    }
+  };
+
+  loadBuildings();
+}, []);
 
   const handleInputChange = (e) => {
     const { name, value, type, files } = e.target;
