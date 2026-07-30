@@ -50,7 +50,7 @@ export const notifyInvoiceSent = async (invoiceId, senderId) => {
         issueType: invoice.issue?.issueType,
         unitNumber: invoice.location?.unitNumber || invoice.issue?.unitNumber || invoice.issue?.unit,
         building: invoice.location?.building || invoice.issue?.building?.name,
-        total: invoice.total,
+        totalCost: invoice.total,
         newStatus: invoice.status,
         changedBy: senderId?.toString?.() || senderId
       }
@@ -101,7 +101,7 @@ export const notifyPaymentReceived = async (invoiceId, payment) => {
         paymentId: payment?._id?.toString?.() || payment?._id,
         paymentOrderId: payment?.orderId,
         paymentReference: payment?.payherePaymentId || payment?.orderId,
-        amount: payment?.amount ?? invoice.total,
+        totalCost: payment?.amount ?? invoice.total,
         paymentMethod: payment?.paymentMethod || 'payhere',
         tenantName: invoice.tenant?.name,
         issueType: issue.issueType,
@@ -161,7 +161,7 @@ export const notifyIssueReported = async (issue, propertyManagerId) => {
       issue: issue._id,
       data: {
         issueType: populatedIssue.issueType,
-        unit: populatedIssue.unit,
+        unitNumber: populatedIssue.unitNumber || populatedIssue.unit,
         building: buildingName,
         tenantName: tenantName
       }
@@ -222,7 +222,7 @@ export const notifyTaskAssigned = async (issue, staffId, managerId) => {
       data: {
         assignedStaffName: staffMember.name,
         issueType: populatedIssue.issueType,
-        unit: populatedIssue.unit,
+        unitNumber: populatedIssue.unitNumber || populatedIssue.unit,
         building: buildingName,
         tenantName: tenant.name
       }
@@ -309,7 +309,7 @@ export const notifyStatusChanged = async (issue, previousStatus, newStatus, mana
         previousStatus,
         newStatus,
         issueType: populatedIssue.issueType,
-        unit: populatedIssue.unit,
+        unitNumber: populatedIssue.unitNumber || populatedIssue.unit,
         building: buildingName,
         tenantName: tenant.name,
         assignedStaffName: staffMember?.name
@@ -377,7 +377,7 @@ export const notifyStartDateOverdue = async (issue) => {
       issue: issue._id,
       data: {
         issueType: populatedIssue.issueType,
-        unit: populatedIssue.unit,
+        unitNumber: populatedIssue.unitNumber || populatedIssue.unit,
         building: buildingName,
         scheduledStartDate: scheduledDate
       }
@@ -420,7 +420,7 @@ export const notifyCostReportRequired = async (issue, staffId) => {
       actionUrl: `/staff/tasks/${issue._id}/cost-report`,
       data: {
         issueType: issue.issueType,
-        unit: issue.unit
+        unitNumber: issue.unitNumber || issue.unit
       }
     });
   } catch (error) {

@@ -26,10 +26,10 @@ router.put("/:id/read", markAsRead);
 // Mark all notifications as read
 router.put("/read-all", markAllAsRead);
 
-// Delete single notification
-router.delete("/:id", deleteNotification);
-
 // Clear all notifications
 router.delete("/clear-all", clearAllNotifications);
+
+// Delete single notification (keep parameterized routes after fixed paths)
+router.delete("/:id", deleteNotification);
 
 export default router;
